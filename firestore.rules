@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isEmployee() {
+      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'employee';
+    }
+
+    function isOwnDocument() {
+      return isAuth() && request.auth.uid == resource.data.id;
+    }
+
+    // Users collection - All authenticated users can read their own data
+    match /users/{userId} {
+      allow read: if isAuth() && (isAdmin() || request.auth.uid == userId);
+      allow create: if isAuth();
+      allow update: if isAdmin() || request.auth.uid == userId;
+      allow delete: if isAdmin();
+    }
+
+    // Attendance collection
+    match /attendance/{document=**} {
+      // Employees can read their own attendance
+      allow read: if isAuth() && (isAdmin() || resource.data.userId == request.auth.uid);
+      // Only admins can create, update, and delete attendance
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Leaves collection
+    match /leaves/{document=**} {
+      // Employees can read their own leave requests
+      allow read: if isAuth() && (isAdmin() || resource.data.userId == request.auth.uid);
+      // Employees can create their own leave requests
+      allow create: if isEmployee() && request.resource.data.userId == request.auth.uid;
+      // Only admins can approve/reject leaves
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Salary collection
+    match /salary/{document=**} {
+      // Employees can read their own salary
+      allow read: if isAuth() && (isAdmin() || resource.data.userId == request.auth.uid);
+      // Only admins can create, update, and delete salary records
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Leave Config collection
+    match /leaveConfig/{document=**} {
+      // Everyone can read
+      allow read: if isAuth();
+      // Only admins can write
+      allow write: if isAdmin();
+    }
+
+    // Salary Config collection
+    match /salaryConfig/{document=**} {
+      // Everyone can read
+      allow read: if isAuth();
+      // Only admins can write
+      allow write: if isAdmin();
+    }
+
+    // Messages collection
+    match /messages/{document=**} {
+      // Users can read their own messages
+      allow read: if isAuth() && (
+        resource.data.senderId == request.auth.uid ||
+        resource.data.recipientId == request.auth.uid
+      );
+      // Authenticated users can send messages
+      allow create: if isAuth() && request.resource.data.senderId == request.auth.uid;
+      // Users can update their own messages
+      allow update: if isAuth() && (
+        resource.data.senderId == request.auth.uid ||
+        resource.data.recipientId == request.auth.uid
+      );
+      allow delete: if false;
+    }
+
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

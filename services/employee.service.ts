@@ -1,0 +1,136 @@
+// services/employee.service.ts - Employee Management Service
+
+import { where } from 'firebase/firestore';
+import { FirestoreDB } from '@/lib/firestore';
+import { Employee, EmployeeFilter } from '@/types/employee';
+
+export class EmployeeService {
+  private static readonly COLLECTION = 'employees';
+
+  /**
+   * Create employee record
+   */
+  static async createEmployee(employee: Employee): Promise<void> {
+    try {
+      await FirestoreDB.addDocument(this.COLLECTION, employee);
+    } catch (error) {
+      console.error('Error creating employee:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get employee by ID
+   */
+  static async getEmployee(employeeId: string): Promise<Employee | null> {
+    try {
+      return await FirestoreDB.getDocument<Employee>(
+        this.COLLECTION,
+        employeeId
+      );
+    } catch (error) {
+      console.error('Error getting employee:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all employees
+   */
+  static async getAllEmployees(): Promise<Employee[]> {
+    try {
+      return await FirestoreDB.getCollection<Employee>(this.COLLECTION);
+    } catch (error) {
+      console.error('Error getting all employees:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Search employees with filters
+   */
+  static async searchEmployees(filters: EmployeeFilter): Promise<Employee[]> {
+    try {
+      let employees = await this.getAllEmployees();
+
+      // Filter by department
+      if (filters.department) {
+        employees = employees.filter(
+          (emp) => emp.department === filters.department
+        );
+      }
+
+      // Filter by status
+      if (filters.status) {
+        employees = employees.filter((emp) => emp.status === filters.status);
+      }
+
+      // Search by name or email
+      if (filters.searchTerm) {
+        const term = filters.searchTerm.toLowerCase();
+        employees = employees.filter(
+          (emp) =>
+            emp.firstName.toLowerCase().includes(term) ||
+            emp.lastName.toLowerCase().includes(term) ||
+            emp.email.toLowerCase().includes(term) ||
+            emp.employeeId.toLowerCase().includes(term)
+        );
+      }
+
+      // Pagination
+      const limit = filters.limit || 10;
+      const page = filters.page || 1;
+      const start = (page - 1) * limit;
+      const end = start + limit;
+
+      return employees.slice(start, end);
+    } catch (error) {
+      console.error('Error searching employees:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update employee
+   */
+  static async updateEmployee(
+    employeeId: string,
+    updates: Partial<Employee>
+  ): Promise<void> {
+    try {
+      await FirestoreDB.updateDocument(this.COLLECTION, employeeId, updates);
+    } catch (error) {
+      console.error('Error updating employee:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete employee
+   */
+  static async deleteEmployee(employeeId: string): Promise<void> {
+    try {
+      await FirestoreDB.deleteDocument(this.COLLECTION, employeeId);
+    } catch (error) {
+      console.error('Error deleting employee:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get employees by department
+   */
+  static async getEmployeesByDepartment(
+    department: string
+  ): Promise<Employee[]> {
+    try {
+      return await FirestoreDB.queryCollection<Employee>(
+        this.COLLECTION,
+        [where('department', '==', department)]
+      );
+    } catch (error) {
+      console.error('Error getting employees by department:', error);
+      throw error;
+    }
+  }
+}
