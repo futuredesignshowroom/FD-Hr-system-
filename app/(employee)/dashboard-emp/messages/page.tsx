@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useAuthStore } from '@/store/auth.store';
+import { EmployeeService } from '@/services/employee.service';
+import { MessageService } from '@/services/message.service';
+import { Employee } from '@/types/employee';
 
 interface Conversation {
   id: string;
@@ -39,49 +42,58 @@ export default function EmployeeMessagesPage() {
   const [chatType, setChatType] = useState<'private' | 'group'>('private');
   const [groupName, setGroupName] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [users, setUsers] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Mock data - in real app, this would come from API
-  const mockUsers = [
-    { id: '1', name: 'Ali Ahmed', avatar: 'https://via.placeholder.com/40', isOnline: true },
-    { id: '2', name: 'Sara Khan', avatar: 'https://via.placeholder.com/40', isOnline: false },
-    { id: '3', name: 'Ahmed Hassan', avatar: 'https://via.placeholder.com/40', isOnline: true },
-    { id: '4', name: 'Admin', avatar: 'https://via.placeholder.com/40', isOnline: true },
-  ];
+  const loadUsersAndConversations = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      // Load all employees for messaging
+      const allUsers = await EmployeeService.getAllEmployees();
+      setUsers(allUsers);
+
+      // Load user's messages to create conversations
+      const userMessages = await MessageService.getUserMessages(user.id);
+      
+      // Create conversations from messages
+      const conversationMap = new Map<string, Conversation>();
+      
+      userMessages.forEach(message => {
+        const otherUserId = message.senderId === user.id ? message.recipientId : message.senderId;
+        const otherUser = allUsers.find(u => u.userId === otherUserId);
+        
+        if (otherUser && !conversationMap.has(otherUserId)) {
+          conversationMap.set(otherUserId, {
+            id: otherUserId,
+            type: 'private',
+            name: `${otherUser.firstName} ${otherUser.lastName}`,
+            participants: [user.id, otherUserId],
+            avatar: otherUser.avatar || `https://via.placeholder.com/40/${otherUser.firstName.charAt(0)}${otherUser.lastName.charAt(0)}`,
+            isOnline: false, // TODO: Implement online status
+            lastMessage: {
+              content: message.content,
+              senderName: message.senderId === user.id ? 'You' : `${otherUser.firstName} ${otherUser.lastName}`,
+              createdAt: message.createdAt,
+              isRead: message.isRead || false,
+            },
+          });
+        }
+      });
+
+      setConversations(Array.from(conversationMap.values()));
+    } catch (error) {
+      console.error('Error loading users and conversations:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   useEffect(() => {
-    // Load conversations
-    const mockConversations: Conversation[] = [
-      {
-        id: '1',
-        type: 'private',
-        name: 'Ali Ahmed',
-        participants: ['user1', 'user2'],
-        avatar: 'https://via.placeholder.com/40',
-        isOnline: true,
-        lastMessage: {
-          content: 'Hello, how are you?',
-          senderName: 'Ali Ahmed',
-          createdAt: new Date(Date.now() - 1000 * 60 * 30),
-          isRead: false,
-        },
-      },
-      {
-        id: '2',
-        type: 'group',
-        name: 'HR Team',
-        participants: ['user1', 'user2', 'user3'],
-        avatar: 'https://via.placeholder.com/40',
-        lastMessage: {
-          content: 'Meeting at 3 PM today',
-          senderName: 'Sara Khan',
-          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
-          isRead: true,
-        },
-      },
-    ];
-    setConversations(mockConversations);
-  }, []);
+    loadUsersAndConversations();
+  }, [loadUsersAndConversations]);
 
   useEffect(() => {
     // Scroll to bottom when new messages arrive
@@ -121,15 +133,15 @@ export default function EmployeeMessagesPage() {
 
   const handleStartNewChat = () => {
     if (chatType === 'private' && selectedUsers.length === 1) {
-      const selectedUser = mockUsers.find(u => u.id === selectedUsers[0]);
+      const selectedUser = users.find(u => u.userId === selectedUsers[0]);
       if (selectedUser) {
         const newConversation: Conversation = {
           id: Date.now().toString(),
           type: 'private',
-          name: selectedUser.name,
+          name: `${selectedUser.firstName} ${selectedUser.lastName}`,
           participants: [user?.id || 'current', selectedUsers[0]],
-          avatar: selectedUser.avatar,
-          isOnline: selectedUser.isOnline,
+          avatar: selectedUser.avatar || `https://via.placeholder.com/40/${selectedUser.firstName.charAt(0)}${selectedUser.lastName.charAt(0)}`,
+          isOnline: false, // TODO: Implement online status
         };
         setConversations(prev => [newConversation, ...prev]);
         setSelectedConversation(newConversation);
@@ -203,7 +215,16 @@ export default function EmployeeMessagesPage() {
 
         {/* Conversations List */}
         <div className="flex-1 overflow-y-auto">
-          {conversations.map((conversation) => (
+          {loading ? (
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+            </div>
+          ) : conversations.length === 0 ? (
+            <div className="flex items-center justify-center p-8 text-gray-500">
+              <p>No conversations yet</p>
+            </div>
+          ) : (
+            conversations.map((conversation) => (
             <div
               key={conversation.id}
               onClick={() => setSelectedConversation(conversation)}
@@ -249,7 +270,8 @@ export default function EmployeeMessagesPage() {
                 </div>
               </div>
             </div>
-          ))}
+          ))
+          )}
         </div>
       </div>
 
@@ -450,26 +472,26 @@ export default function EmployeeMessagesPage() {
                   {chatType === 'private' ? 'Select a contact' : 'Select participants'}
                 </p>
                 <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
-                  {mockUsers.filter(u => u.id !== user?.id).map((user) => (
-                    <label key={user.id} className="flex items-center p-3 hover:bg-gray-50 cursor-pointer">
+                  {users.filter(u => u.userId !== user?.id).map((user) => (
+                    <label key={user.userId} className="flex items-center p-3 hover:bg-gray-50 cursor-pointer">
                       <input
                         type={chatType === 'private' ? 'radio' : 'checkbox'}
-                        checked={selectedUsers.includes(user.id)}
-                        onChange={() => toggleUserSelection(user.id)}
+                        checked={selectedUsers.includes(user.userId)}
+                        onChange={() => toggleUserSelection(user.userId)}
                         className="mr-3 text-green-600 focus:ring-green-500"
                       />
                       <Image
-                        src={user.avatar}
-                        alt={user.name}
+                        src={user.avatar || `https://via.placeholder.com/40/${user.firstName.charAt(0)}${user.lastName.charAt(0)}`}
+                        alt={`${user.firstName} ${user.lastName}`}
                         width={40}
                         height={40}
                         className="w-10 h-10 rounded-full mr-3"
                       />
                       <div className="flex-1">
-                        <p className="font-medium text-gray-900">{user.name}</p>
-                        <p className="text-sm text-gray-500">{user.isOnline ? 'Online' : 'Offline'}</p>
+                        <p className="font-medium text-gray-900">{`${user.firstName} ${user.lastName}`}</p>
+                        <p className="text-sm text-gray-500">{'Offline'}</p>
                       </div>
-                      {user.isOnline && (
+                      {false && (
                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       )}
                     </label>

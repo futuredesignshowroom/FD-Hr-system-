@@ -54,6 +54,16 @@ export interface LeaveSummary {
   totalDays: number;
 }
 
+export interface RecentActivity {
+  id: string;
+  type: 'new_employee' | 'leave_approved' | 'salary_processed';
+  title: string;
+  description: string;
+  timestamp: Date;
+  icon: string;
+  color: string;
+}
+
 export class ReportsService {
   /**
    * Get admin dashboard metrics
@@ -548,6 +558,108 @@ export class ReportsService {
       return activities.slice(0, 5);
     } catch (error) {
       console.error('Error getting employee recent activities:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get recent activities for admin dashboard
+   */
+  static async getAdminRecentActivities(): Promise<RecentActivity[]> {
+    const firestore = ensureDb();
+    try {
+      const activities: RecentActivity[] = [];
+
+      // Get recent new employees (last 2)
+      const usersRef = collection(firestore, 'users');
+      const recentEmployees = await getDocs(
+        query(
+          usersRef,
+          where('role', '==', 'employee'),
+          orderBy('createdAt', 'desc'),
+          limit(2)
+        )
+      );
+
+      recentEmployees.forEach((doc: any) => {
+        const data = doc.data();
+        activities.push({
+          id: doc.id,
+          type: 'new_employee',
+          title: 'New employee joined',
+          description: `${data.firstName} ${data.lastName} - ${data.department || 'Department'}`,
+          timestamp: data.createdAt ? new Date(data.createdAt.seconds * 1000) : new Date(),
+          icon: 'user',
+          color: 'blue',
+        });
+      });
+
+      // Get recent approved leaves (last 2)
+      const leavesRef = collection(firestore, 'leaves');
+      const recentLeaves = await getDocs(
+        query(
+          leavesRef,
+          where('status', '==', 'approved'),
+          orderBy('updatedAt', 'desc'),
+          limit(2)
+        )
+      );
+
+      for (const doc of recentLeaves.docs) {
+        const data = doc.data();
+        // Get employee name
+        const employeeDoc = await getDocs(
+          query(usersRef, where('id', '==', data.userId))
+        );
+        const employeeName = employeeDoc.docs.length > 0 
+          ? `${employeeDoc.docs[0].data().firstName} ${employeeDoc.docs[0].data().lastName}`
+          : 'Unknown Employee';
+        
+        const days = Math.ceil((new Date(data.endDate).getTime() - new Date(data.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        
+        activities.push({
+          id: doc.id,
+          type: 'leave_approved',
+          title: 'Leave approved',
+          description: `${employeeName} - ${days} days`,
+          timestamp: data.updatedAt ? new Date(data.updatedAt.seconds * 1000) : new Date(),
+          icon: 'check',
+          color: 'green',
+        });
+      }
+
+      // Get recent salary processing (last 1)
+      const salaryRef = collection(firestore, 'salary');
+      const recentSalaries = await getDocs(
+        query(
+          salaryRef,
+          orderBy('createdAt', 'desc'),
+          limit(1)
+        )
+      );
+
+      if (!recentSalaries.empty) {
+        const salaryData = recentSalaries.docs[0].data();
+        const monthName = new Date(salaryData.createdAt.seconds * 1000).toLocaleString('default', { month: 'long' });
+        const year = new Date(salaryData.createdAt.seconds * 1000).getFullYear();
+        
+        activities.push({
+          id: recentSalaries.docs[0].id,
+          type: 'salary_processed',
+          title: 'Salary processed',
+          description: `${monthName} ${year} payroll`,
+          timestamp: salaryData.createdAt ? new Date(salaryData.createdAt.seconds * 1000) : new Date(),
+          icon: 'dollar',
+          color: 'orange',
+        });
+      }
+
+      // Sort by timestamp (most recent first) and limit to 5
+      return activities
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        .slice(0, 5);
+    } catch (error) {
+      console.error('Error getting admin recent activities:', error);
       return [];
     }
   }

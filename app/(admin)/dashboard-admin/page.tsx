@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ReportsService, DashboardMetrics } from '@/services/reports.service';
+import { ReportsService, DashboardMetrics, RecentActivity } from '@/services/reports.service';
 import Loader from '@/components/ui/Loader';
 import BarChart from '@/components/ui/BarChart';
 import { useAuthStore } from '@/store/auth.store';
@@ -14,6 +14,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const { user, hydrate } = useAuthStore();
   const router = useRouter();
 
@@ -65,6 +66,10 @@ export default function AdminDashboard() {
             };
           });
           setAttendanceData(chartData);
+
+          // Fetch recent activities
+          const activities = await ReportsService.getAdminRecentActivities();
+          setRecentActivities(activities);
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to load metrics');
         } finally {
@@ -219,39 +224,37 @@ export default function AdminDashboard() {
             <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6">
               <h3 className="text-xl font-bold mb-4 text-gray-800">Recent Activities</h3>
               <div className="space-y-4">
-                <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
+                {recentActivities.length > 0 ? (
+                  recentActivities.map((activity) => (
+                    <div key={activity.id} className={`flex items-center space-x-3 p-3 bg-${activity.color}-50 rounded-lg`}>
+                      <div className={`w-8 h-8 bg-${activity.color}-100 rounded-full flex items-center justify-center`}>
+                        {activity.icon === 'user' && (
+                          <svg className={`w-4 h-4 text-${activity.color}-600`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        )}
+                        {activity.icon === 'check' && (
+                          <svg className={`w-4 h-4 text-${activity.color}-600`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                        {activity.icon === 'dollar' && (
+                          <svg className={`w-4 h-4 text-${activity.color}-600`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{activity.title}</p>
+                        <p className="text-xs text-gray-500">{activity.description}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No recent activities</p>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">New employee joined</p>
-                    <p className="text-xs text-gray-500">John Doe - IT Department</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Leave approved</p>
-                    <p className="text-xs text-gray-500">Sarah Wilson - 3 days</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3 p-3 bg-orange-50 rounded-lg">
-                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Salary processed</p>
-                    <p className="text-xs text-gray-500">December 2025 payroll</p>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
