@@ -19,12 +19,6 @@ export default function LeaveConfigPage() {
     loadData();
   }, []);
 
-  useEffect(() => {
-    if (selectedEmployee) {
-      loadEmployeeBalances(selectedEmployee);
-    }
-  }, [selectedEmployee]);
-
   const loadData = async () => {
     try {
       setLoading(true);
