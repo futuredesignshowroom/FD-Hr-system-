@@ -15,8 +15,12 @@ export interface Message {
 export interface Conversation {
   id: string;
   participantIds: string[];
-  lastMessage?: Message;
+  participantNames: string[];
+  type: 'private' | 'group';
+  name?: string; // For group chats
+  lastMessage?: ChatMessage;
   updatedAt: Date;
+  createdBy?: string; // User who created the group
 }
 
 export interface ChatMessage {
@@ -26,5 +30,18 @@ export interface ChatMessage {
   senderName: string;
   content: string;
   isRead: boolean;
+  readBy: string[]; // Array of user IDs who have read the message
   createdAt: Date;
+  messageType: 'text' | 'system'; // System messages for group events
+}
+
+export interface GroupChat {
+  id: string;
+  name: string;
+  description?: string;
+  participants: string[]; // User IDs
+  admins: string[]; // User IDs who can manage the group
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
