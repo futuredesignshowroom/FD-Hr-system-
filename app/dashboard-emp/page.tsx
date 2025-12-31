@@ -4,14 +4,15 @@
 
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
+import { useEffect } from 'react';
 
 export default function EmployeeDashboard() {
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { user, logout, hydrate } = useAuthStore();
 
-  if (!user) {
-    return null;
-  }
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
 
   return (
     <div className="min-h-screen bg-gray-100">

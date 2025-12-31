@@ -24,7 +24,10 @@ export default function LoginPage() {
       if (user) {
         setUser(user);
         setLastUid(null);
-        router.push(user.role === 'admin' ? '/dashboard-admin' : '/dashboard-emp');
+        // Small delay to ensure store updates
+        setTimeout(() => {
+          router.push(user.role === 'admin' ? '/dashboard-admin' : '/dashboard-emp');
+        }, 100);
       } else {
         setError('User profile not found. Please sign up first or contact an administrator.');
         setLastUid(null);
