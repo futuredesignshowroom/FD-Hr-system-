@@ -103,11 +103,6 @@ export default function LeaveConfigPage() {
     }
   };
 
-  const getEmployeeBalance = (leaveType: string) => {
-    const balance = employeeBalances.find(b => b.leaveType === leaveType);
-    return balance?.totalAllowed || 0;
-  };
-
   if (loading) return <Loader />;
 
   return (
@@ -121,94 +116,288 @@ export default function LeaveConfigPage() {
         <h2 className="text-xl font-bold mb-4">Select Employee</h2>
         <select
           value={selectedEmployee}
-          onChange={(e) => setSelectedEmployee(e.target.value)}
-          className="w-full p-2 border border-gray-300 rounded-md"
+          onChange={(e) => handleEmployeeSelect(e.target.value)}
+          className="w-full p-3 border border-gray-300 rounded-md text-lg"
         >
           <option value="">Select an employee...</option>
           {employees.map((employee) => (
             <option key={employee.id} value={employee.id}>
-              {employee.firstName} {employee.lastName} - {employee.email}
+              {employee.firstName} {employee.lastName} - {employee.position} - {employee.email}
             </option>
           ))}
         </select>
       </div>
 
-      {/* Leave Policies */}
       {selectedEmployee && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold mb-4">Leave Configuration for Selected Employee</h2>
+        <>
+          {/* Employee Basic Information */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-bold mb-4">Employee Information</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
+                <input
+                  type="text"
+                  value={employees.find(e => e.id === selectedEmployee)?.employeeId || ''}
+                  readOnly
+                  className="w-full p-2 border border-gray-300 rounded bg-gray-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                <input
+                  type="text"
+                  value={employees.find(e => e.id === selectedEmployee)?.firstName || ''}
+                  readOnly
+                  className="w-full p-2 border border-gray-300 rounded bg-gray-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                <input
+                  type="text"
+                  value={employees.find(e => e.id === selectedEmployee)?.lastName || ''}
+                  readOnly
+                  className="w-full p-2 border border-gray-300 rounded bg-gray-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+                <input
+                  type="text"
+                  value={employees.find(e => e.id === selectedEmployee)?.position || ''}
+                  readOnly
+                  className="w-full p-2 border border-gray-300 rounded bg-gray-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                <input
+                  type="text"
+                  value={employees.find(e => e.id === selectedEmployee)?.department || ''}
+                  readOnly
+                  className="w-full p-2 border border-gray-300 rounded bg-gray-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={employees.find(e => e.id === selectedEmployee)?.email || ''}
+                  readOnly
+                  className="w-full p-2 border border-gray-300 rounded bg-gray-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date of Joining</label>
+                <input
+                  type="text"
+                  value={employees.find(e => e.id === selectedEmployee)?.dateOfJoining?.toDateString() || ''}
+                  readOnly
+                  className="w-full p-2 border border-gray-300 rounded bg-gray-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <input
+                  type="text"
+                  value={employees.find(e => e.id === selectedEmployee)?.status || ''}
+                  readOnly
+                  className="w-full p-2 border border-gray-300 rounded bg-gray-50"
+                />
+              </div>
+            </div>
+          </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="px-4 py-2 text-left">Leave Type</th>
-                  <th className="px-4 py-2 text-left">Default Policy</th>
-                  <th className="px-4 py-2 text-left">Employee Allowance</th>
-                  <th className="px-4 py-2 text-left">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {policies.map((policy) => (
-                  <tr key={policy.id} className="border-b">
-                    <td className="px-4 py-2 capitalize font-medium">
-                      {policy.leaveType}
-                    </td>
-                    <td className="px-4 py-2">
-                      {policy.allowedDaysPerYear} days/year
-                    </td>
-                    <td className="px-4 py-2">
-                      <input
-                        type="number"
-                        min="0"
-                        value={getEmployeeBalance(policy.leaveType)}
-                        onChange={(e) => {
-                          const value = parseInt(e.target.value) || 0;
-                          const updatedBalances = employeeBalances.map(b =>
-                            b.leaveType === policy.leaveType
-                              ? { ...b, totalAllowed: value }
-                              : b
-                          );
-                          setEmployeeBalances(updatedBalances);
-                        }}
-                        className="w-20 p-1 border border-gray-300 rounded"
-                      />
-                      <span className="ml-2">days</span>
-                    </td>
-                    <td className="px-4 py-2">
+          {/* Leave Allowances Configuration */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-bold mb-4">Leave Allowances Configuration</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {employeeBalances.map((balance) => (
+                <div key={balance.leaveType} className="border border-gray-200 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold capitalize mb-3 text-blue-600">
+                    {balance.leaveType} Leave
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Total Allowed
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={balance.totalAllowed}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 0;
+                            const updatedBalances = employeeBalances.map(b =>
+                              b.leaveType === balance.leaveType
+                                ? { ...b, totalAllowed: value, remaining: value - b.used }
+                                : b
+                            );
+                            setEmployeeBalances(updatedBalances);
+                          }}
+                          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Used
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={balance.used}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 0;
+                            const updatedBalances = employeeBalances.map(b =>
+                              b.leaveType === balance.leaveType
+                                ? { ...b, used: value, remaining: b.totalAllowed - value }
+                                : b
+                            );
+                            setEmployeeBalances(updatedBalances);
+                          }}
+                          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Carry Forward
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={balance.carryForward}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 0;
+                            const updatedBalances = employeeBalances.map(b =>
+                              b.leaveType === balance.leaveType
+                                ? { ...b, carryForward: value, remaining: b.totalAllowed + value - b.used }
+                                : b
+                            );
+                            setEmployeeBalances(updatedBalances);
+                          }}
+                          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Remaining
+                        </label>
+                        <input
+                          type="number"
+                          value={balance.remaining}
+                          readOnly
+                          className="w-full p-2 border border-gray-300 rounded bg-gray-50"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end">
                       <button
-                        onClick={() => updateEmployeeBalance(policy.leaveType, getEmployeeBalance(policy.leaveType))}
+                        onClick={() => updateEmployeeBalance(balance.leaveType, balance.totalAllowed)}
                         disabled={saving}
-                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
                       >
                         {saving ? 'Saving...' : 'Update'}
                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Summary */}
+            <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+              <h3 className="text-lg font-semibold mb-3 text-blue-800">Leave Summary</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {employeeBalances.reduce((total, balance) => total + balance.totalAllowed, 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Allowed</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-orange-600">
+                    {employeeBalances.reduce((total, balance) => total + balance.used, 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Used</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {employeeBalances.reduce((total, balance) => total + balance.remaining, 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Remaining</div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="mt-4 p-4 bg-gray-50 rounded">
-            <h3 className="font-semibold mb-2">Total Leave Allowance:</h3>
-            <p className="text-lg">
-              {employeeBalances.reduce((total, balance) => total + balance.totalAllowed, 0)} days per year
-            </p>
+          {/* Additional Settings */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-bold mb-4">Additional Leave Settings</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Leave Year
+                </label>
+                <input
+                  type="number"
+                  value={new Date().getFullYear()}
+                  readOnly
+                  className="w-full p-2 border border-gray-300 rounded bg-gray-50"
+                />
+                <p className="text-xs text-gray-500 mt-1">Current leave year</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Auto-carry Forward
+                </label>
+                <select className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <option value="yes">Enabled</option>
+                  <option value="no">Disabled</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Automatically carry forward unused leaves</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Notification Settings
+                </label>
+                <select className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <option value="all">All notifications</option>
+                  <option value="important">Important only</option>
+                  <option value="none">No notifications</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Leave-related notifications</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Special Notes
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Any special notes about this employee's leave policy..."
+                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
-      {/* General Policies */}
+      {/* General Policies Reference */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-bold mb-4">General Leave Policies</h2>
-
+        <h2 className="text-xl font-bold mb-4">General Leave Policies Reference</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-100">
               <tr>
                 <th className="px-4 py-2 text-left">Leave Type</th>
-                <th className="px-4 py-2 text-left">Days Per Year</th>
+                <th className="px-4 py-2 text-left">Default Days/Year</th>
                 <th className="px-4 py-2 text-left">Carry Forward</th>
                 <th className="px-4 py-2 text-left">Requires Approval</th>
               </tr>
