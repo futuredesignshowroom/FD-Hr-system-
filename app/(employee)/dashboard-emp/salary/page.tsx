@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { SalaryService } from '@/services/salary.service';
 import { useAuthStore } from '@/store/auth.store';
 import Loader from '@/components/ui/Loader';
@@ -22,13 +22,7 @@ export default function EmployeeSalaryPage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const { user } = useAuthStore();
 
-  useEffect(() => {
-    if (user) {
-      loadSalaryData();
-    }
-  }, [user, selectedMonth, selectedYear]);
-
-  const loadSalaryData = async () => {
+  const loadSalaryData = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -53,7 +47,13 @@ export default function EmployeeSalaryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    if (user) {
+      loadSalaryData();
+    }
+  }, [user, loadSalaryData]);
 
   const getMonthName = (month: number) => {
     const months = [

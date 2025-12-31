@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { useAuthStore } from '@/store/auth.store';
 import { EmployeeService } from '@/services/employee.service';
@@ -34,39 +34,7 @@ export default function EmployeeProfilePage() {
   const [success, setSuccess] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user?.id) return;
-
-      try {
-        const data = await EmployeeService.getEmployeeProfile(user.id);
-        const profileData = {
-          ...data,
-          name: `${data.firstName} ${data.lastName}`,
-          joinDate: data.dateOfJoining.toISOString().split('T')[0],
-        };
-        setProfile(profileData);
-      } catch (err) {
-        console.error('Profile fetch error:', err);
-        // If profile not found, try to create a basic employee profile
-        if (err instanceof Error && err.message.includes('not found')) {
-          try {
-            await createBasicEmployeeProfile();
-          } catch (createErr) {
-            setError('Profile not found. Please contact your administrator.');
-          }
-        } else {
-          setError(err instanceof Error ? err.message : 'Failed to load profile');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, [user?.id]);
-
-  const createBasicEmployeeProfile = async () => {
+  const createBasicEmployeeProfile = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -103,7 +71,40 @@ export default function EmployeeProfilePage() {
       console.error('Error creating basic profile:', err);
       throw err;
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user?.id) {
+      const fetchProfile = async () => {
+        try {
+          setLoading(true);
+          const data = await EmployeeService.getEmployeeProfile(user.id);
+          const profileData = {
+            ...data,
+            name: `${data.firstName} ${data.lastName}`,
+            joinDate: data.dateOfJoining.toISOString().split('T')[0],
+          };
+          setProfile(profileData);
+        } catch (err) {
+          console.error('Profile fetch error:', err);
+          // If profile not found, try to create a basic employee profile
+          if (err instanceof Error && err.message.includes('not found')) {
+            try {
+              await createBasicEmployeeProfile();
+            } catch {
+              setError('Profile not found. Please contact your administrator.');
+            }
+          } else {
+            setError(err instanceof Error ? err.message : 'Failed to load profile');
+          }
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchProfile();
+    }
+  }, [user?.id, createBasicEmployeeProfile]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();

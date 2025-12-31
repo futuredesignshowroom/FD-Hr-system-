@@ -1,6 +1,6 @@
 'use client';
 import { Employee } from '@/types/employee';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AttendanceService } from '@/services/attendance.service';
 import { EmployeeService } from '@/services/employee.service';
 import { Attendance, AttendanceStatus } from '@/types/attendance';
@@ -19,11 +19,7 @@ export default function AdminAttendancePage() {
   const [error, setError] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
-  useEffect(() => {
-    loadData();
-  }, [selectedDate]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -50,13 +46,18 @@ export default function AdminAttendancePage() {
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
       setAttendanceRecords(filteredAttendance);
+      setError('');
     } catch (err) {
+      console.error('Error loading attendance data:', err);
       setError('Failed to load attendance data');
-      console.error('Error loading attendance:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDate]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const getTodayStats = () => {
     const present = attendanceRecords.filter(r => r.status === 'present').length;

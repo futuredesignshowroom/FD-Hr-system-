@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { LeaveService } from '@/services/leave.service';
 import { LeaveConfigService } from '@/services/leave-config.service';
 import { useAuthStore } from '@/store/auth.store';
@@ -30,7 +30,7 @@ export default function EmployeeLeavesPage() {
     }
   }, [user]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -46,7 +46,13 @@ export default function EmployeeLeavesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      loadData();
+    }
+  }, [user, loadData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

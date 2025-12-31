@@ -25,7 +25,7 @@ export default function EmployeeLayout({
     if (user && user.role !== 'employee') {
       router.push('/dashboard-admin');
     }
-  }, [user]);
+  }, [user, router]);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);

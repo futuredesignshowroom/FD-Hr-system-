@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AttendanceService } from '@/services/attendance.service';
 import { useAuthStore } from '@/store/auth.store';
 import { Attendance } from '@/types/attendance';
@@ -14,13 +14,7 @@ export default function EmployeeAttendancePage() {
   const [checkingOut, setCheckingOut] = useState(false);
   const { user } = useAuthStore();
 
-  useEffect(() => {
-    if (user) {
-      loadAttendance();
-    }
-  }, [user]);
-
-  const loadAttendance = async () => {
+  const loadAttendance = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -35,7 +29,13 @@ export default function EmployeeAttendancePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      loadAttendance();
+    }
+  }, [user, loadAttendance]);
 
   const handleCheckIn = async () => {
     if (!user) return;

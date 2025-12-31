@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 
 interface Conversation {
   id: string;
@@ -210,9 +211,11 @@ export default function AdminMessagesPage() {
             >
               <div className="flex items-center space-x-3">
                 <div className="relative">
-                  <img
+                  <Image
                     src={conversation.avatar || 'https://via.placeholder.com/40'}
                     alt={conversation.name}
+                    width={48}
+                    height={48}
                     className="w-12 h-12 rounded-full"
                   />
                   {conversation.isOnline && (
@@ -255,9 +258,11 @@ export default function AdminMessagesPage() {
             {/* Chat Header */}
             <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <img
+                <Image
                   src={selectedConversation.avatar || 'https://via.placeholder.com/40'}
                   alt={selectedConversation.name}
+                  width={40}
+                  height={40}
                   className="w-10 h-10 rounded-full"
                 />
                 <div>
@@ -302,9 +307,11 @@ export default function AdminMessagesPage() {
                       {!isCurrentUser && (
                         <div className="w-8 flex-shrink-0">
                           {showAvatar && (
-                            <img
+                            <Image
                               src={selectedConversation.avatar || 'https://via.placeholder.com/32'}
                               alt={message.senderName}
+                              width={32}
+                              height={32}
                               className="w-8 h-8 rounded-full"
                             />
                           )}
@@ -449,9 +456,11 @@ export default function AdminMessagesPage() {
                         onChange={() => toggleUserSelection(user.id)}
                         className="mr-3 text-green-600 focus:ring-green-500"
                       />
-                      <img
+                      <Image
                         src={user.avatar}
                         alt={user.name}
+                        width={40}
+                        height={40}
                         className="w-10 h-10 rounded-full mr-3"
                       />
                       <div className="flex-1">
