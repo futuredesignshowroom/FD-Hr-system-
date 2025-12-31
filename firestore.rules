@@ -110,6 +110,23 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Notifications collection
+    match /notifications/{document=**} {
+      // Users can read their own notifications
+      allow read: if isAuth() && resource.data.userId == request.auth.uid;
+      // Admins can read all notifications
+      allow read: if isAdmin();
+      // Users can create notifications for themselves
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      // Admins can create notifications
+      allow create: if isAdmin();
+      // Users can update their own notifications (mark as read)
+      allow update: if isAuth() && resource.data.userId == request.auth.uid;
+      // Admins can update any notification
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
     // Deny all other access
     match /{document=**} {
       allow read, write: if false;

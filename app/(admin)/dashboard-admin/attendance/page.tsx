@@ -6,6 +6,8 @@ import { EmployeeService } from '@/services/employee.service';
 import { Attendance, AttendanceStatus } from '@/types/attendance';
  
 import Loader from '@/components/ui/Loader';
+import { collection, onSnapshot, query } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface AttendanceWithEmployee extends Attendance {
   employeeName: string;
@@ -14,7 +16,7 @@ interface AttendanceWithEmployee extends Attendance {
 
 export default function AdminAttendancePage() {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceWithEmployee[]>([]);
-  
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -56,8 +58,63 @@ export default function AdminAttendancePage() {
   }, [selectedDate]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadEmployees();
+
+    if (!db) {
+      setError('Firebase not initialized');
+      setLoading(false);
+      return;
+    }
+
+    // Real-time listener for attendance records
+    const attendanceQuery = query(collection(db, 'attendance'));
+    const unsubscribeAttendance = onSnapshot(attendanceQuery, (snapshot) => {
+      const allAttendance = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        date: doc.data().date?.toDate?.() || new Date(doc.data().date),
+        checkInTime: doc.data().checkInTime?.toDate?.() || new Date(doc.data().checkInTime),
+        checkOutTime: doc.data().checkOutTime?.toDate?.() || new Date(doc.data().checkOutTime),
+        createdAt: doc.data().createdAt?.toDate?.() || new Date(doc.data().createdAt),
+        updatedAt: doc.data().updatedAt?.toDate?.() || new Date(doc.data().updatedAt),
+      })) as Attendance[];
+
+      // Filter attendance by selected date and add employee info
+      const filteredAttendance = allAttendance
+        .filter(record => {
+          const recordDate = new Date(record.date).toISOString().split('T')[0];
+          return recordDate === selectedDate;
+        })
+        .map(record => {
+          const employee = employees.find(emp => emp.userId === record.userId);
+          return {
+            ...record,
+            employeeName: ((employee?.firstName || '') + ' ' + (employee?.lastName || '')).trim() || 'Unknown',
+            employeeEmail: employee?.email || 'Unknown',
+          };
+        })
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      setAttendanceRecords(filteredAttendance);
+      setLoading(false);
+      setError('');
+    }, (error) => {
+      console.error('Error listening to attendance:', error);
+      setError('Failed to load attendance data');
+      setLoading(false);
+    });
+
+    return () => unsubscribeAttendance();
+  }, [selectedDate, employees]);
+
+  const loadEmployees = async () => {
+    try {
+      const allEmployees = await EmployeeService.getAllEmployees();
+      setEmployees(allEmployees);
+    } catch (err) {
+      console.error('Error loading employees:', err);
+    }
+  };
 
   const getTodayStats = () => {
     const present = attendanceRecords.filter(r => r.status === 'present').length;

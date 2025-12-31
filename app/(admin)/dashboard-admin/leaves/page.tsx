@@ -10,6 +10,8 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { useAuthStore } from '@/store/auth.store';
+import { collection, onSnapshot, query } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function AdminLeavesPage() {
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
@@ -23,22 +25,41 @@ export default function AdminLeavesPage() {
   const { user } = useAuthStore();
 
   useEffect(() => {
-    loadData();
+    loadEmployees();
+
+    if (!db) {
+      console.error('Firebase not initialized');
+      setLoading(false);
+      return;
+    }
+
+    // Real-time listener for leave requests
+    const leaveQuery = query(collection(db, 'leaves'));
+    const unsubscribeLeaves = onSnapshot(leaveQuery, (snapshot) => {
+      const requests = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        startDate: doc.data().startDate?.toDate?.() || new Date(doc.data().startDate),
+        endDate: doc.data().endDate?.toDate?.() || new Date(doc.data().endDate),
+        createdAt: doc.data().createdAt?.toDate?.() || new Date(doc.data().createdAt),
+        updatedAt: doc.data().updatedAt?.toDate?.() || new Date(doc.data().updatedAt),
+      })) as LeaveRequest[];
+      setLeaveRequests(requests);
+      setLoading(false);
+    }, (error) => {
+      console.error('Error listening to leave requests:', error);
+      setLoading(false);
+    });
+
+    return () => unsubscribeLeaves();
   }, []);
 
-  const loadData = async () => {
+  const loadEmployees = async () => {
     try {
-      setLoading(true);
-      const [requests, emps] = await Promise.all([
-        LeaveService.getAllLeaveRequests(),
-        EmployeeService.getAllEmployees(),
-      ]);
-      setLeaveRequests(requests);
+      const emps = await EmployeeService.getAllEmployees();
       setEmployees(emps);
     } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error loading employees:', error);
     }
   };
 
@@ -55,7 +76,6 @@ export default function AdminLeavesPage() {
     setProcessing(requestId);
     try {
       await LeaveService.approveLeave(requestId, user?.id);
-      await loadData();
     } catch (error) {
       console.error('Error approving leave:', error);
       alert('Failed to approve leave request');
@@ -73,7 +93,6 @@ export default function AdminLeavesPage() {
       setShowRejectModal(false);
       setRejectionReason('');
       setSelectedRequest(null);
-      await loadData();
     } catch (error) {
       console.error('Error rejecting leave:', error);
       alert('Failed to reject leave request');

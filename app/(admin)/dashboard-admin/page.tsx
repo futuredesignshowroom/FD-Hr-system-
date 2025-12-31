@@ -8,6 +8,8 @@ import { useAuthStore } from '@/store/auth.store';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { collection, onSnapshot, query } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function AdminDashboard() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
@@ -49,7 +51,56 @@ export default function AdminDashboard() {
         try {
           const data = await ReportsService.getDashboardMetrics();
           setMetrics(data);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to load metrics');
+        }
+      };
 
+      // Set up real-time listeners
+      if (!db) {
+        setError('Firebase not initialized');
+        setLoading(false);
+        return;
+      }
+
+      // Real-time listener for employees
+      const employeesQuery = query(collection(db, 'employees'));
+      const unsubscribeEmployees = onSnapshot(employeesQuery, () => {
+        fetchMetrics();
+      }, (error) => {
+        console.error('Error listening to employees:', error);
+      });
+
+      // Real-time listener for attendance
+      const attendanceQuery = query(collection(db, 'attendance'));
+      const unsubscribeAttendance = onSnapshot(attendanceQuery, () => {
+        fetchMetrics();
+      }, (error) => {
+        console.error('Error listening to attendance:', error);
+      });
+
+      // Real-time listener for leaves
+      const leavesQuery = query(collection(db, 'leaves'));
+      const unsubscribeLeaves = onSnapshot(leavesQuery, () => {
+        fetchMetrics();
+      }, (error) => {
+        console.error('Error listening to leaves:', error);
+      });
+
+      // Real-time listener for salaries
+      const salariesQuery = query(collection(db, 'salary'));
+      const unsubscribeSalaries = onSnapshot(salariesQuery, () => {
+        fetchMetrics();
+      }, (error) => {
+        console.error('Error listening to salaries:', error);
+      });
+
+      // Initial fetch
+      fetchMetrics();
+
+      // Fetch attendance chart data
+      const fetchChartData = async () => {
+        try {
           // Fetch last 7 days attendance data for chart
           const endDate = new Date().toISOString().split('T')[0];
           const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -66,18 +117,31 @@ export default function AdminDashboard() {
             };
           });
           setAttendanceData(chartData);
-
-          // Fetch recent activities
-          const activities = await ReportsService.getAdminRecentActivities();
-          setRecentActivities(activities);
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to load metrics');
-        } finally {
-          setLoading(false);
+          console.error('Error fetching chart data:', err);
         }
       };
 
-      fetchMetrics();
+      fetchChartData();
+
+      // Fetch recent activities
+      const fetchActivities = async () => {
+        try {
+          const activities = await ReportsService.getAdminRecentActivities();
+          setRecentActivities(activities);
+        } catch (err) {
+          console.error('Error fetching activities:', err);
+        }
+      };
+
+      fetchActivities();
+
+      return () => {
+        unsubscribeEmployees();
+        unsubscribeAttendance();
+        unsubscribeLeaves();
+        unsubscribeSalaries();
+      };
     });
 
     return () => unsubscribe();

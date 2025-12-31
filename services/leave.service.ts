@@ -3,6 +3,8 @@
 import { where } from 'firebase/firestore';
 import { FirestoreDB } from '@/lib/firestore';
 import { LeaveCalculator } from '@/lib/calculations';
+import { NotificationService } from './notification.service';
+import { EmployeeService } from './employee.service';
 import {
   LeaveRequest,
   LeavePolicy,
@@ -22,7 +24,23 @@ export class LeaveService {
   static async applyLeave(leaveRequest: Omit<LeaveRequest, 'id'>): Promise<string> {
     try {
       const docRef = await FirestoreDB.addDocument(this.COLLECTION, leaveRequest);
-      return docRef.id;
+      const leaveId = docRef.id;
+
+      // Create notification for admin
+      try {
+        const employee = await EmployeeService.getEmployeeProfile(leaveRequest.userId);
+        const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee';
+
+        await NotificationService.createLeaveRequestNotification(
+          { ...leaveRequest, id: leaveId },
+          employeeName
+        );
+      } catch (notificationError) {
+        console.error('Error creating leave request notification:', notificationError);
+        // Don't fail the leave application if notification fails
+      }
+
+      return leaveId;
     } catch (error) {
       console.error('Error applying for leave:', error);
       throw error;
@@ -201,5 +219,19 @@ export class LeaveService {
       console.error('Error updating leave balance:', error);
       throw error;
     }
+  }
+
+  /**
+   * Approve leave request (Admin only) - Convenience method
+   */
+  static async approveLeaveRequest(leaveRequestId: string, adminId?: string): Promise<void> {
+    return this.approveLeave(leaveRequestId, adminId);
+  }
+
+  /**
+   * Reject leave request (Admin only) - Convenience method
+   */
+  static async rejectLeaveRequest(leaveRequestId: string, reason: string): Promise<void> {
+    return this.rejectLeave(leaveRequestId, reason);
   }
 }

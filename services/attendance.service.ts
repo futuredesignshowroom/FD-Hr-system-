@@ -3,6 +3,8 @@
 import { where } from 'firebase/firestore';
 import { FirestoreDB } from '@/lib/firestore';
 import { AttendanceCalculator } from '@/lib/calculations';
+import { NotificationService } from './notification.service';
+import { EmployeeService } from './employee.service';
 import { Attendance, AttendanceRecord, AttendanceStatus } from '@/types/attendance';
 
 export class AttendanceService {
@@ -30,6 +32,17 @@ export class AttendanceService {
       );
       attendance.id = docRef.id;
 
+      // Create notification for admin
+      try {
+        const employee = await EmployeeService.getEmployeeProfile(userId);
+        const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee';
+
+        await NotificationService.createAttendanceNotification(attendance, employeeName, 'checkin');
+      } catch (notificationError) {
+        console.error('Error creating check-in notification:', notificationError);
+        // Don't fail the check-in if notification fails
+      }
+
       return attendance;
     } catch (error) {
       console.error('Error checking in:', error);
@@ -42,10 +55,27 @@ export class AttendanceService {
    */
   static async checkOut(attendanceId: string): Promise<void> {
     try {
+      // Get the attendance record first to get user info
+      const attendance = await FirestoreDB.getDocument<Attendance>(this.COLLECTION, attendanceId);
+      if (!attendance) {
+        throw new Error('Attendance record not found');
+      }
+
       await FirestoreDB.updateDocument(this.COLLECTION, attendanceId, {
         checkOutTime: new Date(),
         updatedAt: new Date(),
       });
+
+      // Create notification for admin
+      try {
+        const employee = await EmployeeService.getEmployeeProfile(attendance.userId);
+        const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee';
+
+        await NotificationService.createAttendanceNotification(attendance, employeeName, 'checkout');
+      } catch (notificationError) {
+        console.error('Error creating check-out notification:', notificationError);
+        // Don't fail the check-out if notification fails
+      }
     } catch (error) {
       console.error('Error checking out:', error);
       throw error;
