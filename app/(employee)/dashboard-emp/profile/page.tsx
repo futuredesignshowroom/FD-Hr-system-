@@ -47,7 +47,17 @@ export default function EmployeeProfilePage() {
         };
         setProfile(profileData);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load profile');
+        console.error('Profile fetch error:', err);
+        // If profile not found, try to create a basic employee profile
+        if (err instanceof Error && err.message.includes('not found')) {
+          try {
+            await createBasicEmployeeProfile();
+          } catch (createErr) {
+            setError('Profile not found. Please contact your administrator.');
+          }
+        } else {
+          setError(err instanceof Error ? err.message : 'Failed to load profile');
+        }
       } finally {
         setLoading(false);
       }
@@ -55,6 +65,45 @@ export default function EmployeeProfilePage() {
 
     fetchProfile();
   }, [user?.id]);
+
+  const createBasicEmployeeProfile = async () => {
+    if (!user) return;
+
+    try {
+      const [firstName, ...lastNameParts] = user.name.split(' ');
+      const lastName = lastNameParts.join(' ') || '';
+
+      const employee = {
+        id: '', // will be auto-generated
+        userId: user.id,
+        employeeId: `EMP${user.id.slice(0, 8).toUpperCase()}`,
+        firstName,
+        lastName,
+        email: user.email,
+        department: user.department || 'General',
+        position: 'Employee',
+        dateOfJoining: new Date(),
+        status: 'active' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await EmployeeService.createEmployee(employee);
+
+      // Now fetch the created profile
+      const data = await EmployeeService.getEmployeeProfile(user.id);
+      const profileData = {
+        ...data,
+        name: `${data.firstName} ${data.lastName}`,
+        joinDate: data.dateOfJoining.toISOString().split('T')[0],
+      };
+      setProfile(profileData);
+      setError('');
+    } catch (err) {
+      console.error('Error creating basic profile:', err);
+      throw err;
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,10 +142,29 @@ export default function EmployeeProfilePage() {
 
   if (loading) return <Loader />;
 
+  if (error && !profile) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-500 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!profile) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Profile not found</p>
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">Loading profile...</p>
+          <Loader />
+        </div>
       </div>
     );
   }

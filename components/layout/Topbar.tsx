@@ -43,8 +43,8 @@ export default function Topbar({ userRole, userName = 'User', onMenuToggle, isMe
     if (userRole === 'employee') {
       router.push('/dashboard-emp/profile');
     } else {
-      // For admin, maybe redirect to a profile page or settings
-      router.push('/dashboard-admin/settings');
+      // For admin, redirect to admin profile page
+      router.push('/dashboard-admin/profile');
     }
   };
 
