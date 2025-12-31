@@ -12,6 +12,8 @@ import {
 import { auth } from '@/lib/firebase';
 import { FirestoreDB } from '@/lib/firestore';
 import { User, UserRole } from '@/types/user';
+import { EmployeeService } from './employee.service';
+import { Employee } from '@/types/employee';
 
 export class AuthService {
   /**
@@ -49,6 +51,29 @@ export class AuthService {
 
       // Save user to Firestore with explicit document ID
       await FirestoreDB.addDocument('users', user, firebaseUser.uid);
+
+      // If user is employee, create employee record
+      if (userData.role === 'employee') {
+        const [firstName, ...lastNameParts] = userData.name.split(' ');
+        const lastName = lastNameParts.join(' ') || '';
+
+        const employee: Employee = {
+          id: '', // will be set by addDocument
+          userId: firebaseUser.uid,
+          employeeId: `EMP${firebaseUser.uid.slice(0, 8).toUpperCase()}`, // generate employeeId
+          firstName,
+          lastName,
+          email: firebaseUser.email || '',
+          department: userData.department || '',
+          position: 'Employee',
+          dateOfJoining: new Date(),
+          status: 'active',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        await EmployeeService.createEmployee(employee);
+      }
 
       return user;
     } catch (error) {
@@ -105,6 +130,27 @@ export class AuthService {
           updatedAt: new Date(),
         };
         await FirestoreDB.addDocument('users', newUser);
+
+        // Create employee record for new employee user
+        const [firstName, ...lastNameParts] = newUser.name.split(' ');
+        const lastName = lastNameParts.join(' ') || '';
+
+        const employee: Employee = {
+          id: '',
+          userId: userCredential.user.uid,
+          employeeId: `EMP${userCredential.user.uid.slice(0, 8).toUpperCase()}`,
+          firstName,
+          lastName,
+          email: newUser.email,
+          department: '', // default empty
+          position: 'Employee',
+          dateOfJoining: new Date(),
+          status: 'active',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        await EmployeeService.createEmployee(employee);
       }
       
       return userCredential.user;

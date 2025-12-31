@@ -45,6 +45,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Employees collection - Users can read their own, admins can read/write all
+    match /employees/{document=**} {
+      allow read: if isAuth() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+      allow write: if isAdmin();
+    }
+
     // Leave Config collection - Admins can read/write
     match /leaveConfig/{document=**} {
       allow read, write: if isAdmin();
