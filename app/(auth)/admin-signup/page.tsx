@@ -3,9 +3,17 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { AuthService } from '@/services/auth.service';
+import { useAuthStore } from '@/store/auth.store';
+
+// Admin registration key (should be from environment variable in production)
+const ADMIN_REGISTRATION_KEY = process.env.NEXT_PUBLIC_ADMIN_KEY || 'ADMIN2024';
 
 export default function AdminSignupPage() {
+  const router = useRouter();
+  const { setUser } = useAuthStore();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -14,6 +22,7 @@ export default function AdminSignupPage() {
     adminKey: '',
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement>
@@ -26,17 +35,52 @@ export default function AdminSignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     setLoading(true);
 
-    // Admin signup logic here
-    console.log('Admin signup attempt', formData);
+    // Validate admin key
+    if (formData.adminKey !== ADMIN_REGISTRATION_KEY) {
+      setError('Invalid admin registration key');
+      setLoading(false);
+      return;
+    }
 
-    setLoading(false);
+    // Validate passwords match
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Register as admin
+      const user = await AuthService.register(
+        formData.email,
+        formData.password,
+        {
+          name: formData.name,
+          role: 'admin',
+        }
+      );
+
+      setUser(user);
+      router.push('/dashboard-admin');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Admin registration failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-8">
+    <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
       <h1 className="text-3xl font-bold mb-6 text-center">Admin Registration</h1>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>

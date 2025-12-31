@@ -2,7 +2,7 @@
 
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -33,21 +33,12 @@ try {
 // Initialize Auth
 export const auth = app ? getAuth(app) : null;
 
-// Initialize Firestore
-export const db = app ? getFirestore(app) : null;
-
-// Enable offline persistence (only in browser environment)
-if (typeof window !== 'undefined' && db) {
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn(
-        'Multiple tabs open, offline persistence not available'
-      );
-    } else if (err.code === 'unimplemented') {
-      console.warn('Browser does not support offline persistence');
-    }
-  });
-}
+// Initialize Firestore with modern persistence settings
+export const db = app 
+  ? initializeFirestore(app, {
+      localCache: persistentLocalCache()
+    })
+  : null;
 
 // Initialize Storage
 export const storage = app ? getStorage(app) : null;
