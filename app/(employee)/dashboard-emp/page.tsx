@@ -27,6 +27,7 @@ export default function EmployeeDashboard() {
   useEffect(() => {
     // Hydrate auth state once on mount
     hydrate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array to run only once
 
   useEffect(() => {

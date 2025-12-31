@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useAuthStore } from '@/store/auth.store';
 import { EmployeeService } from '@/services/employee.service';
 import Loader from '@/components/ui/Loader';
@@ -126,9 +127,11 @@ export default function EmployeeProfilePage() {
         <div className="flex flex-col lg:flex-row items-start lg:items-center space-y-6 lg:space-y-0 lg:space-x-8 mb-8">
           {/* Avatar */}
           <div className="relative">
-            <img
+            <Image
               src={profile.avatar || "https://via.placeholder.com/120"}
               alt="Profile"
+              width={128}
+              height={128}
               className="w-24 h-24 lg:w-32 lg:h-32 rounded-full border-4 border-gray-100"
             />
             {isEditing && (

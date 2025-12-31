@@ -25,7 +25,7 @@ const hasValidCredentials =
 let app: any;
 try {
   app = hasValidCredentials ? initializeApp(firebaseConfig) : null;
-} catch (error) {
+} catch {
   console.warn('Firebase initialization skipped during build - credentials not available');
   app = null;
 }
