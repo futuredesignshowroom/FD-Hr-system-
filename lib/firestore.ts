@@ -111,9 +111,12 @@ export class FirestoreDB {
     collectionName: string,
     data: T
   ): Promise<DocumentReference> {
+    if (!db) {
+      throw new Error('Firebase not initialized. Please check your environment variables.');
+    }
     try {
       return await withRetry(() =>
-        addDoc(collection(db, collectionName), this.prepareData(data))
+        addDoc(collection(db!, collectionName), this.prepareData(data))
       );
     } catch (error: any) {
       const friendlyError = parseFirebaseError(error);
@@ -129,9 +132,12 @@ export class FirestoreDB {
     collectionName: string,
     docId: string
   ): Promise<T | null> {
+    if (!db) {
+      throw new Error('Firebase not initialized. Please check your environment variables.');
+    }
     try {
       return await withRetry(async () => {
-        const docRef = doc(db, collectionName, docId);
+        const docRef = doc(db!, collectionName, docId);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           return { id: docSnap.id, ...docSnap.data() } as T;
@@ -149,9 +155,12 @@ export class FirestoreDB {
    * Get all documents from a collection
    */
   static async getCollection<T>(collectionName: string): Promise<T[]> {
+    if (!db) {
+      throw new Error('Firebase not initialized. Please check your environment variables.');
+    }
     try {
       return await withRetry(async () => {
-        const querySnapshot = await getDocs(collection(db, collectionName));
+        const querySnapshot = await getDocs(collection(db!, collectionName));
         return querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
@@ -171,9 +180,12 @@ export class FirestoreDB {
     collectionName: string,
     constraints: QueryConstraint[]
   ): Promise<T[]> {
+    if (!db) {
+      throw new Error('Firebase not initialized. Please check your environment variables.');
+    }
     try {
       return await withRetry(async () => {
-        const q = query(collection(db, collectionName), ...constraints);
+        const q = query(collection(db!, collectionName), ...constraints);
         const querySnapshot = await getDocs(q);
         return querySnapshot.docs.map((doc) => ({
           id: doc.id,
@@ -195,9 +207,12 @@ export class FirestoreDB {
     docId: string,
     data: Record<string, any>
   ): Promise<void> {
+    if (!db) {
+      throw new Error('Firebase not initialized. Please check your environment variables.');
+    }
     try {
       await withRetry(async () => {
-        const docRef = doc(db, collectionName, docId);
+        const docRef = doc(db!, collectionName, docId);
         await updateDoc(docRef, this.prepareData(data));
       });
     } catch (error: any) {
@@ -214,9 +229,12 @@ export class FirestoreDB {
     collectionName: string,
     docId: string
   ): Promise<void> {
+    if (!db) {
+      throw new Error('Firebase not initialized. Please check your environment variables.');
+    }
     try {
       await withRetry(async () => {
-        const docRef = doc(db, collectionName, docId);
+        const docRef = doc(db!, collectionName, docId);
         await deleteDoc(docRef);
       });
     } catch (error: any) {

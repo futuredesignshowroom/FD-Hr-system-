@@ -26,6 +26,9 @@ export class AuthService {
       department?: string;
     }
   ): Promise<User> {
+    if (!auth) {
+      throw new Error('Firebase Auth not initialized. Please check your environment variables.');
+    }
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -58,6 +61,9 @@ export class AuthService {
    * Login user
    */
   static async login(email: string, password: string): Promise<FirebaseUser> {
+    if (!auth) {
+      throw new Error('Firebase Auth not initialized. Please check your environment variables.');
+    }
     try {
       const userCredential = await signInWithEmailAndPassword(
         auth,
@@ -75,6 +81,9 @@ export class AuthService {
    * Login with Google
    */
   static async signInWithGoogle(): Promise<FirebaseUser> {
+    if (!auth) {
+      throw new Error('Firebase Auth not initialized. Please check your environment variables.');
+    }
     try {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
@@ -109,6 +118,9 @@ export class AuthService {
    * Logout user
    */
   static async logout(): Promise<void> {
+    if (!auth) {
+      throw new Error('Firebase Auth not initialized. Please check your environment variables.');
+    }
     try {
       await signOut(auth);
     } catch (error) {

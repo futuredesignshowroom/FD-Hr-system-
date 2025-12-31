@@ -7,7 +7,16 @@ import {
   where,
   getDocs,
   getCountFromServer,
+  Firestore,
 } from 'firebase/firestore';
+
+// Helper function to ensure db is available
+function ensureDb(): Firestore {
+  if (!db) {
+    throw new Error('Firebase not initialized. Please check your environment variables.');
+  }
+  return db;
+}
 
 export interface DashboardMetrics {
   totalEmployees: number;
@@ -48,9 +57,10 @@ export class ReportsService {
    * Get admin dashboard metrics
    */
   static async getDashboardMetrics(): Promise<DashboardMetrics> {
+    const firestore = ensureDb();
     try {
       // Count total employees
-      const employeesRef = collection(db, 'users');
+      const employeesRef = collection(firestore, 'users');
       const employeesSnapshot = await getCountFromServer(
         query(employeesRef, where('role', '==', 'employee'))
       );
@@ -67,14 +77,14 @@ export class ReportsService {
 
       // Count today's attendance
       const today = new Date().toISOString().split('T')[0];
-      const attendanceRef = collection(db, 'attendance');
+      const attendanceRef = collection(firestore, 'attendance');
       const todayAttendanceSnapshot = await getCountFromServer(
         query(attendanceRef, where('date', '==', today))
       );
       const todayAttendance = todayAttendanceSnapshot.data().count;
 
       // Count pending leaves
-      const leavesRef = collection(db, 'leaves');
+      const leavesRef = collection(firestore, 'leaves');
       const pendingLeavesSnapshot = await getCountFromServer(
         query(leavesRef, where('status', '==', 'pending'))
       );
@@ -91,7 +101,7 @@ export class ReportsService {
           : 0;
 
       // Calculate total payroll
-      const salariesRef = collection(db, 'salary');
+      const salariesRef = collection(firestore, 'salary');
       const salariesSnapshot = await getDocs(salariesRef);
       let totalPayroll = 0;
       salariesSnapshot.forEach((doc: any) => {
@@ -116,11 +126,12 @@ export class ReportsService {
    * Get department-wise summary
    */
   static async getDepartmentSummary(): Promise<DepartmentSummary[]> {
+    const firestore = ensureDb();
     try {
       const departmentMap = new Map<string, DepartmentSummary>();
 
       // Get all employees
-      const usersRef = collection(db, 'users');
+      const usersRef = collection(firestore, 'users');
       const usersSnapshot = await getDocs(
         query(usersRef, where('role', '==', 'employee'))
       );
@@ -144,7 +155,7 @@ export class ReportsService {
 
       // Get today's attendance by department
       const today = new Date().toISOString().split('T')[0];
-      const attendanceRef = collection(db, 'attendance');
+      const attendanceRef = collection(firestore, 'attendance');
       const todayAttendance = await getDocs(
         query(attendanceRef, where('date', '==', today))
       );
@@ -166,7 +177,7 @@ export class ReportsService {
       }
 
       // Get pending leaves by department
-      const leavesRef = collection(db, 'leaves');
+      const leavesRef = collection(firestore, 'leaves');
       const pendingLeaves = await getDocs(
         query(leavesRef, where('status', '==', 'pending'))
       );
@@ -182,7 +193,7 @@ export class ReportsService {
       }
 
       // Get salary totals by department
-      const salariesRef = collection(db, 'salary');
+      const salariesRef = collection(firestore, 'salary');
       const allSalaries = await getDocs(salariesRef);
 
       for (const salary of allSalaries.docs) {
@@ -209,10 +220,11 @@ export class ReportsService {
     startDate: string,
     endDate: string
   ): Promise<AttendanceSummary[]> {
+    const firestore = ensureDb();
     try {
       const summaries: { [key: string]: AttendanceSummary } = {};
 
-      const attendanceRef = collection(db, 'attendance');
+      const attendanceRef = collection(firestore, 'attendance');
       const attendanceDocs = await getDocs(
         query(
           attendanceRef,
@@ -266,13 +278,14 @@ export class ReportsService {
    * Get leave summary for a month
    */
   static async getLeaveSummary(year: number, month: number): Promise<LeaveSummary> {
+    const firestore = ensureDb();
     try {
       const startDate = new Date(year, month - 1, 1)
         .toISOString()
         .split('T')[0];
       const endDate = new Date(year, month, 0).toISOString().split('T')[0];
 
-      const leavesRef = collection(db, 'leaves');
+      const leavesRef = collection(firestore, 'leaves');
       const leaves = await getDocs(
         query(
           leavesRef,
@@ -317,6 +330,7 @@ export class ReportsService {
    * Get employee performance summary
    */
   static async getEmployeePerformance(userId: string): Promise<any> {
+    const firestore = ensureDb();
     try {
       const today = new Date();
       const currentMonth = today.getMonth() + 1;
@@ -329,7 +343,7 @@ export class ReportsService {
         .split('T')[0];
 
       // Get attendance for current month
-      const attendanceRef = collection(db, 'attendance');
+      const attendanceRef = collection(firestore, 'attendance');
       const monthAttendance = await getDocs(
         query(
           attendanceRef,
@@ -347,7 +361,7 @@ export class ReportsService {
         totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
 
       // Get leaves for current month
-      const leavesRef = collection(db, 'leaves');
+      const leavesRef = collection(firestore, 'leaves');
       const monthLeaves = await getDocs(
         query(
           leavesRef,
@@ -364,7 +378,7 @@ export class ReportsService {
       });
 
       // Get salary for current month
-      const salaryRef = collection(db, 'salary');
+      const salaryRef = collection(firestore, 'salary');
       const currentSalary = await getDocs(
         query(
           salaryRef,
