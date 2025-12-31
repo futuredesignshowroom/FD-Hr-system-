@@ -4,12 +4,19 @@ import { useState, useEffect } from 'react';
 import { EmployeeService } from '@/services/employee.service';
 import { Employee } from '@/types/employee';
 import Loader from '@/components/ui/Loader';
+import Modal from '@/components/ui/Modal';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
 
 export default function AdminEmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
 
   useEffect(() => {
     loadEmployees();
@@ -25,6 +32,46 @@ export default function AdminEmployeesPage() {
       console.error('Error loading employees:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEdit = (employee: Employee) => {
+    setEditingEmployee({ ...employee });
+    setShowEditModal(true);
+  };
+
+  const handleDelete = (employee: Employee) => {
+    setEmployeeToDelete(employee);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!employeeToDelete) return;
+
+    try {
+      await EmployeeService.deleteEmployee(employeeToDelete.id);
+      setEmployees(employees.filter(emp => emp.id !== employeeToDelete.id));
+      setShowDeleteModal(false);
+      setEmployeeToDelete(null);
+    } catch (err) {
+      setError('Failed to delete employee');
+      console.error('Error deleting employee:', err);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingEmployee) return;
+
+    try {
+      await EmployeeService.updateEmployee(editingEmployee.id, editingEmployee);
+      setEmployees(employees.map(emp =>
+        emp.id === editingEmployee.id ? editingEmployee : emp
+      ));
+      setShowEditModal(false);
+      setEditingEmployee(null);
+    } catch (err) {
+      setError('Failed to update employee');
+      console.error('Error updating employee:', err);
     }
   };
 
@@ -102,8 +149,18 @@ export default function AdminEmployeesPage() {
                   </span>
                 </td>
                 <td className="px-6 py-4 space-x-2">
-                  <button className="text-blue-600 hover:underline">Edit</button>
-                  <button className="text-red-600 hover:underline">Delete</button>
+                  <button
+                    onClick={() => handleEdit(employee)}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(employee)}
+                    className="text-red-600 hover:underline"
+                  >
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}
@@ -117,6 +174,85 @@ export default function AdminEmployeesPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Edit Employee Modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="Edit Employee"
+      >
+        {editingEmployee && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="First Name"
+                value={editingEmployee.firstName || ''}
+                onChange={(e) => setEditingEmployee({ ...editingEmployee, firstName: e.target.value })}
+              />
+              <Input
+                label="Last Name"
+                value={editingEmployee.lastName || ''}
+                onChange={(e) => setEditingEmployee({ ...editingEmployee, lastName: e.target.value })}
+              />
+            </div>
+            <Input
+              label="Email"
+              type="email"
+              value={editingEmployee.email || ''}
+              onChange={(e) => setEditingEmployee({ ...editingEmployee, email: e.target.value })}
+            />
+            <Input
+              label="Department"
+              value={editingEmployee.department || ''}
+              onChange={(e) => setEditingEmployee({ ...editingEmployee, department: e.target.value })}
+            />
+            <Input
+              label="Position"
+              value={editingEmployee.position || ''}
+              onChange={(e) => setEditingEmployee({ ...editingEmployee, position: e.target.value })}
+            />
+            <div className="flex justify-end space-x-2">
+              <Button
+                onClick={() => setShowEditModal(false)}
+                variant="secondary"
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSaveEdit}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Employee"
+      >
+        {employeeToDelete && (
+          <div className="space-y-4">
+            <p>Are you sure you want to delete <strong>{employeeToDelete.firstName} {employeeToDelete.lastName}</strong>?</p>
+            <p className="text-sm text-gray-600">This action cannot be undone.</p>
+            <div className="flex justify-end space-x-2">
+              <Button
+                onClick={() => setShowDeleteModal(false)}
+                variant="secondary"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmDelete}
+                variant="danger"
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

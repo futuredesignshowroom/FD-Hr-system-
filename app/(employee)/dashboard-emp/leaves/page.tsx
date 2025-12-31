@@ -24,12 +24,6 @@ export default function EmployeeLeavesPage() {
     reason: '',
   });
 
-  useEffect(() => {
-    if (user) {
-      loadData();
-    }
-  }, [user]);
-
   const loadData = useCallback(async () => {
     if (!user) return;
 
@@ -47,6 +41,12 @@ export default function EmployeeLeavesPage() {
       setLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      loadData();
+    }
+  }, [user, loadData]);
 
   useEffect(() => {
     if (user) {

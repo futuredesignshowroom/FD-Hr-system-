@@ -9,6 +9,7 @@ import Loader from '@/components/ui/Loader';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import { useAuthStore } from '@/store/auth.store';
 
 export default function AdminLeavesPage() {
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
@@ -19,6 +20,7 @@ export default function AdminLeavesPage() {
   const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const { user } = useAuthStore();
 
   useEffect(() => {
     loadData();
@@ -52,7 +54,7 @@ export default function AdminLeavesPage() {
   const handleApprove = async (requestId: string) => {
     setProcessing(requestId);
     try {
-      await LeaveService.approveLeave(requestId);
+      await LeaveService.approveLeave(requestId, user?.id);
       await loadData();
     } catch (error) {
       console.error('Error approving leave:', error);

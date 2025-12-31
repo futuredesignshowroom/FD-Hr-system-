@@ -13,6 +13,7 @@ export default function AdminDashboard() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [attendanceData, setAttendanceData] = useState<any[]>([]);
   const { user, hydrate } = useAuthStore();
   const router = useRouter();
 
@@ -47,6 +48,23 @@ export default function AdminDashboard() {
         try {
           const data = await ReportsService.getDashboardMetrics();
           setMetrics(data);
+
+          // Fetch last 7 days attendance data for chart
+          const endDate = new Date().toISOString().split('T')[0];
+          const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          const attendanceSummary = await ReportsService.getAttendanceSummary(startDate, endDate);
+
+          // Convert to chart format
+          const chartData = attendanceSummary.slice(-5).map((summary, index) => {
+            const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const date = new Date(summary.date);
+            return {
+              label: days[date.getDay()],
+              value: summary.attendancePercentage,
+              color: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'][index % 5]
+            };
+          });
+          setAttendanceData(chartData);
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to load metrics');
         } finally {
@@ -61,15 +79,6 @@ export default function AdminDashboard() {
   }, [user, router]); // Removed hydrate from dependencies
 
   if (loading) return <Loader />;
-
-  // Sample data for charts - in a real app, this would come from the API
-  const attendanceData = [
-    { label: 'Mon', value: 85, color: '#3B82F6' },
-    { label: 'Tue', value: 92, color: '#10B981' },
-    { label: 'Wed', value: 78, color: '#F59E0B' },
-    { label: 'Thu', value: 88, color: '#EF4444' },
-    { label: 'Fri', value: 95, color: '#8B5CF6' },
-  ];
 
   return (
     <div className="space-y-6 lg:space-y-8 p-4 lg:p-6">
