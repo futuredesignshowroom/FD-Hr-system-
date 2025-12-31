@@ -3,6 +3,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface SearchBarProps {
   userRole: 'admin' | 'employee';
@@ -10,16 +11,25 @@ interface SearchBarProps {
 
 export default function SearchBar({ userRole }: SearchBarProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const router = useRouter();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Search:', searchTerm);
+    if (!searchTerm.trim()) return;
+
+    // Navigate to search results page with query
+    const searchQuery = encodeURIComponent(searchTerm.trim());
+    if (userRole === 'admin') {
+      router.push(`/dashboard-admin/search?q=${searchQuery}`);
+    } else {
+      router.push(`/dashboard-emp/search?q=${searchQuery}`);
+    }
   };
 
   const placeholder =
     userRole === 'admin'
-      ? 'Search employees, attendance...'
-      : 'Search messages, leaves...';
+      ? 'Search employees, attendance, leaves...'
+      : 'Search messages, leaves, profile...';
 
   return (
     <form onSubmit={handleSearch} className="flex-1 max-w-lg">

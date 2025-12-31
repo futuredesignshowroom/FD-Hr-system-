@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { LeaveService } from '@/services/leave.service';
+import { LeaveConfigService } from '@/services/leave-config.service';
 import { useAuthStore } from '@/store/auth.store';
 import { LeaveRequest, LeaveType } from '@/types/leave';
 import Loader from '@/components/ui/Loader';
@@ -9,6 +10,7 @@ import Loader from '@/components/ui/Loader';
 export default function EmployeeLeavesPage() {
   const { user } = useAuthStore();
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [totalAllowed, setTotalAllowed] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -20,19 +22,23 @@ export default function EmployeeLeavesPage() {
 
   useEffect(() => {
     if (user) {
-      loadLeaveRequests();
+      loadData();
     }
   }, [user]);
 
-  const loadLeaveRequests = async () => {
+  const loadData = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
-      const requests = await LeaveService.getUserLeaveRequests(user.id);
+      const [requests, allowedDays] = await Promise.all([
+        LeaveService.getUserLeaveRequests(user.id),
+        LeaveConfigService.getTotalAllowedDays(user.id)
+      ]);
       setLeaveRequests(requests);
+      setTotalAllowed(allowedDays);
     } catch (error) {
-      console.error('Error loading leave requests:', error);
+      console.error('Error loading leave data:', error);
     } finally {
       setLoading(false);
     }
@@ -63,7 +69,7 @@ export default function EmployeeLeavesPage() {
         endDate: '',
         reason: '',
       });
-      await loadLeaveRequests(); // Refresh the list
+      await loadData(); // Refresh the list
       alert('Leave request submitted successfully!');
     } catch (error) {
       console.error('Error submitting leave request:', error);
@@ -88,7 +94,7 @@ export default function EmployeeLeavesPage() {
           <h3 className="text-gray-500 text-sm font-semibold mb-2">
             Total Allowed
           </h3>
-          <p className="text-2xl font-bold">12</p>
+          <p className="text-2xl font-bold">{totalAllowed}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-gray-500 text-sm font-semibold mb-2">
@@ -103,7 +109,7 @@ export default function EmployeeLeavesPage() {
             Remaining
           </h3>
           <p className="text-2xl font-bold">
-            {12 - leaveRequests.filter(r => r.status === 'approved').length}
+            {totalAllowed - leaveRequests.filter(r => r.status === 'approved').length}
           </p>
         </div>
         <div className="bg-white rounded-lg shadow p-6">

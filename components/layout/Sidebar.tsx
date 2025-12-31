@@ -25,6 +25,7 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
     { label: 'Employees', href: '/dashboard-admin/employees', icon: 'E' },
     { label: 'Attendance', href: '/dashboard-admin/attendance', icon: 'A' },
     { label: 'Leaves', href: '/dashboard-admin/leaves', icon: 'L' },
+    { label: 'Leave Config', href: '/dashboard-admin/leaves/config', icon: 'C' },
     { label: 'Salary', href: '/dashboard-admin/salary', icon: 'S' },
     { label: 'Messages', href: '/dashboard-admin/messages', icon: 'M' },
     { label: 'Reports', href: '/dashboard-admin/reports', icon: 'R' },
