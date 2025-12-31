@@ -21,12 +21,19 @@ import { db } from './firebase';
  */
 async function withRetry<T>(
   fn: () => Promise<T>,
-  maxRetries: number = 5
+  maxRetries: number = 5,
+  timeoutMs: number = 30000 // 30 second timeout total
 ): Promise<T> {
   let lastError: any;
+  const startTime = Date.now();
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
+      // Check if we've exceeded total timeout
+      if (Date.now() - startTime > timeoutMs) {
+        throw new Error('Firestore operation timed out after 30 seconds');
+      }
+
       return await fn();
     } catch (error: any) {
       lastError = error;

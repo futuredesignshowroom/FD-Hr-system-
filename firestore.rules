@@ -7,11 +7,15 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Check if user exists and has admin role
+      return isAuth() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     function isEmployee() {
-      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'employee';
+      // Check if user exists and has employee role
+      return isAuth() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'employee';
     }
 
     function isOwnDocument() {
@@ -20,37 +24,44 @@ service cloud.firestore {
 
     // Users collection - All authenticated users can read their own data
     match /users/{userId} {
-      allow read: if isAuth() && (isAdmin() || request.auth.uid == userId);
-      allow create: if isAuth();
-      allow update: if isAdmin() || request.auth.uid == userId;
-      allow delete: if isAdmin();
+      // Allow anyone authenticated to read their own user document
+      allow read: if isAuth() && (request.auth.uid == userId);
+      // Allow admins to read all user documents
+      allow read: if isAuth() && isAdmin();
+      // Allow authenticated users to create their own profile
+      allow create: if isAuth() && request.resource.data.id == request.auth.uid;
+      // Users can update their own profile, admins can update anyone
+      allow update: if isAuth() && (request.auth.uid == userId || isAdmin());
+      // Only admins can delete
+      allow delete: if isAuth() && isAdmin();
     }
 
     // Attendance collection
     match /attendance/{document=**} {
-      // Employees can read their own attendance
+      // Employees can read their own attendance, admins can read all
       allow read: if isAuth() && (isAdmin() || resource.data.userId == request.auth.uid);
       // Only admins can create, update, and delete attendance
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isAuth() && isAdmin();
     }
 
     // Leaves collection
     match /leaves/{document=**} {
-      // Employees can read their own leave requests
+      // Employees can read their own leave requests, admins can read all
       allow read: if isAuth() && (isAdmin() || resource.data.userId == request.auth.uid);
       // Employees can create their own leave requests
-      allow create: if isEmployee() && request.resource.data.userId == request.auth.uid;
-      // Only admins can approve/reject leaves
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow create: if isAuth() && isEmployee() && request.resource.data.userId == request.auth.uid;
+      // Only admins can update (approve/reject)
+      allow update: if isAuth() && isAdmin();
+      // Only admins can delete
+      allow delete: if isAuth() && isAdmin();
     }
 
     // Salary collection
     match /salary/{document=**} {
-      // Employees can read their own salary
+      // Employees can read their own salary, admins can read all
       allow read: if isAuth() && (isAdmin() || resource.data.userId == request.auth.uid);
       // Only admins can create, update, and delete salary records
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isAuth() && isAdmin();
     }
 
     // Leave Config collection
@@ -58,7 +69,7 @@ service cloud.firestore {
       // Everyone can read
       allow read: if isAuth();
       // Only admins can write
-      allow write: if isAdmin();
+      allow write: if isAuth() && isAdmin();
     }
 
     // Salary Config collection
@@ -66,7 +77,7 @@ service cloud.firestore {
       // Everyone can read
       allow read: if isAuth();
       // Only admins can write
-      allow write: if isAdmin();
+      allow write: if isAuth() && isAdmin();
     }
 
     // Messages collection
