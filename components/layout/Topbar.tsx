@@ -8,12 +8,12 @@ import Avatar from '../ui/Avatar';
 
 interface TopbarProps {
   userRole: 'admin' | 'employee';
+  userName?: string;
   onMenuToggle?: () => void;
   isMenuOpen?: boolean;
 }
 
-export default function Topbar({ userRole, onMenuToggle, isMenuOpen }: TopbarProps) {
-  const userName = 'John Doe'; // This should ideally come from props or context
+export default function Topbar({ userRole, userName = 'User', onMenuToggle, isMenuOpen }: TopbarProps) {
 
   return (
     <header className="bg-white border-b border-gray-200 shadow-sm">

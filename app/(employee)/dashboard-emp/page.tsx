@@ -15,11 +15,20 @@ interface EmployeePerformance {
   salary: number;
 }
 
+interface Activity {
+  type: string;
+  title: string;
+  description: string;
+  icon: string;
+  color: string;
+}
+
 export default function EmployeeDashboard() {
   const { user, hydrate } = useAuthStore();
   const [performance, setPerformance] = useState<EmployeePerformance | null>(
     null
   );
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const router = useRouter();
@@ -55,8 +64,12 @@ export default function EmployeeDashboard() {
         if (!user?.id) return;
 
         try {
-          const data = await ReportsService.getEmployeePerformance(user.id);
-          setPerformance(data);
+          const [performanceData, activitiesData] = await Promise.all([
+            ReportsService.getEmployeePerformance(user.id),
+            ReportsService.getEmployeeRecentActivities(user.id),
+          ]);
+          setPerformance(performanceData);
+          setActivities(activitiesData);
         } catch (err) {
           setError(
             err instanceof Error ? err.message : 'Failed to load performance'
@@ -215,39 +228,37 @@ export default function EmployeeDashboard() {
             <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6">
               <h3 className="text-xl font-bold mb-4 text-gray-800">Recent Activities</h3>
               <div className="space-y-4">
-                <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                    </svg>
+                {activities.length > 0 ? (
+                  activities.map((activity, index) => (
+                    <div key={index} className={`flex items-center space-x-3 p-3 bg-${activity.color}-50 rounded-lg`}>
+                      <div className={`w-8 h-8 bg-${activity.color}-100 rounded-full flex items-center justify-center`}>
+                        {activity.icon === 'check' && (
+                          <svg className={`w-4 h-4 text-${activity.color}-600`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                          </svg>
+                        )}
+                        {activity.icon === 'dollar' && (
+                          <svg className={`w-4 h-4 text-${activity.color}-600`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        )}
+                        {activity.icon === 'calendar' && (
+                          <svg className={`w-4 h-4 text-${activity.color}-600`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{activity.title}</p>
+                        <p className="text-xs text-gray-500">{activity.description}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No recent activities</p>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">Attendance marked</p>
-                    <p className="text-xs text-gray-500">Today at 9:00 AM</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Salary credited</p>
-                    <p className="text-xs text-gray-500">December 1, 2025</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3 p-3 bg-purple-50 rounded-lg">
-                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Leave approved</p>
-                    <p className="text-xs text-gray-500">2 days casual leave</p>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </div>

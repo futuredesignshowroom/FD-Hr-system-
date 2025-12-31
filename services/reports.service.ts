@@ -8,6 +8,8 @@ import {
   getDocs,
   getCountFromServer,
   Firestore,
+  orderBy,
+  limit,
 } from 'firebase/firestore';
 
 // Helper function to ensure db is available
@@ -463,6 +465,90 @@ export class ReportsService {
     } catch (error) {
       console.error('Error getting employee performance:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Get recent activities for an employee
+   */
+  static async getEmployeeRecentActivities(userId: string): Promise<any[]> {
+    const firestore = ensureDb();
+    try {
+      const activities: any[] = [];
+
+      // Get recent attendance (last 5)
+      const attendanceRef = collection(firestore, 'attendance');
+      const recentAttendance = await getDocs(
+        query(
+          attendanceRef,
+          where('userId', '==', userId),
+          orderBy('date', 'desc'),
+          limit(3)
+        )
+      );
+
+      recentAttendance.forEach((doc: any) => {
+        const data = doc.data();
+        activities.push({
+          type: 'attendance',
+          title: 'Attendance marked',
+          description: `${data.date} at ${data.checkInTime ? new Date(data.checkInTime.seconds * 1000).toLocaleTimeString() : 'N/A'}`,
+          icon: 'check',
+          color: 'green',
+        });
+      });
+
+      // Get recent salary (last 1)
+      const salaryRef = collection(firestore, 'salary');
+      const recentSalary = await getDocs(
+        query(
+          salaryRef,
+          where('userId', '==', userId),
+          orderBy('createdAt', 'desc'),
+          limit(1)
+        )
+      );
+
+      if (!recentSalary.empty) {
+        const salaryData = recentSalary.docs[0].data();
+        activities.push({
+          type: 'salary',
+          title: 'Salary credited',
+          description: `${salaryData.month}/${salaryData.year}`,
+          icon: 'dollar',
+          color: 'blue',
+        });
+      }
+
+      // Get recent approved leaves (last 2)
+      const leavesRef = collection(firestore, 'leaves');
+      const recentLeaves = await getDocs(
+        query(
+          leavesRef,
+          where('userId', '==', userId),
+          where('status', '==', 'approved'),
+          orderBy('updatedAt', 'desc'),
+          limit(2)
+        )
+      );
+
+      recentLeaves.forEach((doc: any) => {
+        const data = doc.data();
+        const days = Math.ceil((new Date(data.endDate).getTime() - new Date(data.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        activities.push({
+          type: 'leave',
+          title: 'Leave approved',
+          description: `${days} days ${data.leaveType} leave`,
+          icon: 'calendar',
+          color: 'purple',
+        });
+      });
+
+      // Sort by some logic (recent first) and limit to 5
+      return activities.slice(0, 5);
+    } catch (error) {
+      console.error('Error getting employee recent activities:', error);
+      return [];
     }
   }
 }

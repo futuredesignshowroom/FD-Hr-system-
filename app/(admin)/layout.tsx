@@ -2,9 +2,10 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
+import { useAuthStore } from '@/store/auth.store';
 
 export default function AdminLayout({
   children,
@@ -12,6 +13,11 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { user, hydrate } = useAuthStore();
+
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -31,6 +37,7 @@ export default function AdminLayout({
       <div className="flex-1 flex flex-col lg:ml-0">
         <Topbar
           userRole="admin"
+          userName={user?.name || 'Admin'}
           onMenuToggle={toggleSidebar}
           isMenuOpen={isSidebarOpen}
         />
