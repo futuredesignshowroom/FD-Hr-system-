@@ -75,6 +75,15 @@ export default function LeaveConfigPage() {
     }
   };
 
+  const handleEmployeeSelect = async (employeeId: string) => {
+    setSelectedEmployee(employeeId);
+    if (employeeId) {
+      await loadEmployeeBalances(employeeId);
+    } else {
+      setEmployeeBalances([]);
+    }
+  };
+
   const updateEmployeeBalance = async (leaveType: string, totalAllowed: number) => {
     if (!selectedEmployee) return;
 
