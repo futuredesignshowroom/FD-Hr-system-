@@ -3,6 +3,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
 import { useAuthStore } from '@/store/auth.store';
@@ -14,10 +15,17 @@ export default function EmployeeLayout({
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { user, hydrate } = useAuthStore();
+  const router = useRouter();
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  useEffect(() => {
+    if (user && user.role !== 'employee') {
+      router.push('/dashboard-admin');
+    }
+  }, [user]);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);

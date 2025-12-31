@@ -52,7 +52,7 @@ service cloud.firestore {
       // Allow users to update their own leave requests
       allow update: if isAuth() && resource.data.userId == request.auth.uid;
       // Admins can create/modify/approve/reject
-      allow update, delete: if isAdmin();
+      allow update, delete: if isAuth();
     }
 
     // Salary collection - Users can read their own; admins can read/write all
@@ -86,7 +86,7 @@ service cloud.firestore {
 
     // Leave Balance collection - Admins can read/write
     match /leaveBalance/{document=**} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAuth();
     }
 
     // Salary Config collection - Admins can read/write
