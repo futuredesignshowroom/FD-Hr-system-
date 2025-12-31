@@ -44,6 +44,18 @@ export class LeaveService {
   }
 
   /**
+   * Get all leave requests (Admin only)
+   */
+  static async getAllLeaveRequests(): Promise<LeaveRequest[]> {
+    try {
+      return await FirestoreDB.getCollection<LeaveRequest>(this.COLLECTION);
+    } catch (error) {
+      console.error('Error getting all leave requests:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get all pending leave requests (Admin only)
    */
   static async getPendingLeaveRequests(): Promise<LeaveRequest[]> {
@@ -63,15 +75,18 @@ export class LeaveService {
    */
   static async approveLeave(
     docId: string,
-    adminId: string
+    adminId?: string
   ): Promise<void> {
     try {
-      await FirestoreDB.updateDocument(this.COLLECTION, docId, {
+      const updateData: any = {
         status: 'approved' as LeaveStatus,
-        approvedBy: adminId,
-        approvedDate: new Date(),
         updatedAt: new Date(),
-      });
+      };
+      if (adminId) {
+        updateData.approvedBy = adminId;
+        updateData.approvedDate = new Date();
+      }
+      await FirestoreDB.updateDocument(this.COLLECTION, docId, updateData);
     } catch (error) {
       console.error('Error approving leave:', error);
       throw error;
