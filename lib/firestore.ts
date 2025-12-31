@@ -163,7 +163,7 @@ export class FirestoreDB {
         console.log(`[Firestore] Document exists:`, docSnap.exists());
         if (docSnap.exists()) {
           console.log(`[Firestore] Document data retrieved successfully`);
-          return { id: docSnap.id, ...docSnap.data() } as T;
+          return { id: docSnap.id, ...this.convertData(docSnap.data()) } as T;
         }
         console.log(`[Firestore] Document does not exist, returning null`);
         return null; // Document doesn't exist - return null instead of throwing
@@ -188,7 +188,7 @@ export class FirestoreDB {
         const querySnapshot = await getDocs(collection(db!, collectionName));
         return querySnapshot.docs.map((doc) => ({
           id: doc.id,
-          ...doc.data(),
+          ...this.convertData(doc.data()),
         })) as T[];
       });
     } catch (error: any) {
@@ -214,7 +214,7 @@ export class FirestoreDB {
         const querySnapshot = await getDocs(q);
         return querySnapshot.docs.map((doc) => ({
           id: doc.id,
-          ...doc.data(),
+          ...this.convertData(doc.data()),
         })) as T[];
       });
     } catch (error: any) {
@@ -284,5 +284,22 @@ export class FirestoreDB {
       }
     }
     return prepared;
+  }
+
+  /**
+   * Convert Firestore data back to app data (convert Timestamp to Date)
+   */
+  private static convertData(data: Record<string, any>): Record<string, any> {
+    const converted: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value instanceof Timestamp) {
+        converted[key] = value.toDate();
+      } else if (typeof value === 'object' && value !== null && !(value instanceof Date)) {
+        converted[key] = this.convertData(value);
+      } else {
+        converted[key] = value;
+      }
+    }
+    return converted;
   }
 }

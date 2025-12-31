@@ -48,15 +48,36 @@ export default function EmployeeLeavesPage() {
     e.preventDefault();
     if (!user) return;
 
+    // Validation
+    const start = new Date(formData.startDate);
+    const end = new Date(formData.endDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (start < today) {
+      alert('Start date cannot be in the past.');
+      return;
+    }
+
+    if (end < start) {
+      alert('End date must be after start date.');
+      return;
+    }
+
+    if (!formData.reason.trim()) {
+      alert('Please provide a reason for the leave.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const leaveRequest: LeaveRequest = {
         id: '',
         userId: user.id,
         leaveType: formData.leaveType,
-        startDate: new Date(formData.startDate),
-        endDate: new Date(formData.endDate),
-        reason: formData.reason,
+        startDate: start,
+        endDate: end,
+        reason: formData.reason.trim(),
         status: 'pending',
         createdAt: new Date(),
         updatedAt: new Date(),
