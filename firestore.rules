@@ -1,83 +1,51 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
+    // Simple authentication check
     function isAuth() {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      // Check if user exists and has admin role
-      return isAuth() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    function isEmployee() {
-      // Check if user exists and has employee role
-      return isAuth() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'employee';
-    }
-
-    function isOwnDocument() {
-      return isAuth() && request.auth.uid == resource.data.id;
-    }
-
-    // Users collection - All authenticated users can read their own data
+    // Users collection - Simplified to avoid circular dependencies
     match /users/{userId} {
-      // Allow anyone authenticated to read their own user document
-      allow read: if isAuth() && (request.auth.uid == userId);
-      // Allow admins to read all user documents
-      allow read: if isAuth() && isAdmin();
-      // Allow authenticated users to create their own profile
+      // Users can read their own document
+      allow read: if isAuth() && request.auth.uid == userId;
+      // Users can create their own profile
       allow create: if isAuth() && request.resource.data.id == request.auth.uid;
-      // Users can update their own profile, admins can update anyone
-      allow update: if isAuth() && (request.auth.uid == userId || isAdmin());
-      // Only admins can delete
-      allow delete: if isAuth() && isAdmin();
+      // Users can update their own profile
+      allow update: if isAuth() && request.auth.uid == userId;
+      // No one can delete
+      allow delete: if false;
     }
 
-    // Attendance collection
+    // Attendance collection - Authenticated users can read all
     match /attendance/{document=**} {
-      // Employees can read their own attendance, admins can read all
-      allow read: if isAuth() && (isAdmin() || resource.data.userId == request.auth.uid);
-      // Only admins can create, update, and delete attendance
-      allow create, update, delete: if isAuth() && isAdmin();
+      allow read: if isAuth();
+      allow write: if false;
     }
 
-    // Leaves collection
+    // Leaves collection - Authenticated users can read all
     match /leaves/{document=**} {
-      // Employees can read their own leave requests, admins can read all
-      allow read: if isAuth() && (isAdmin() || resource.data.userId == request.auth.uid);
-      // Employees can create their own leave requests
-      allow create: if isAuth() && isEmployee() && request.resource.data.userId == request.auth.uid;
-      // Only admins can update (approve/reject)
-      allow update: if isAuth() && isAdmin();
-      // Only admins can delete
-      allow delete: if isAuth() && isAdmin();
+      allow read: if isAuth();
+      allow write: if false;
     }
 
-    // Salary collection
+    // Salary collection - Authenticated users can read all
     match /salary/{document=**} {
-      // Employees can read their own salary, admins can read all
-      allow read: if isAuth() && (isAdmin() || resource.data.userId == request.auth.uid);
-      // Only admins can create, update, and delete salary records
-      allow create, update, delete: if isAuth() && isAdmin();
+      allow read: if isAuth();
+      allow write: if false;
     }
 
     // Leave Config collection
     match /leaveConfig/{document=**} {
-      // Everyone can read
       allow read: if isAuth();
-      // Only admins can write
-      allow write: if isAuth() && isAdmin();
+      allow write: if false;
     }
 
     // Salary Config collection
     match /salaryConfig/{document=**} {
-      // Everyone can read
       allow read: if isAuth();
-      // Only admins can write
-      allow write: if isAuth() && isAdmin();
+      allow write: if false;
     }
 
     // Messages collection
@@ -87,14 +55,9 @@ service cloud.firestore {
         resource.data.senderId == request.auth.uid ||
         resource.data.recipientId == request.auth.uid
       );
-      // Authenticated users can send messages
+      // Users can send messages
       allow create: if isAuth() && request.resource.data.senderId == request.auth.uid;
-      // Users can update their own messages
-      allow update: if isAuth() && (
-        resource.data.senderId == request.auth.uid ||
-        resource.data.recipientId == request.auth.uid
-      );
-      allow delete: if false;
+      allow update, delete: if false;
     }
 
     // Deny all other access
