@@ -12,7 +12,7 @@ export default function EmployeeLeavesPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    type: 'casual' as LeaveType,
+    leaveType: 'casual' as LeaveType,
     startDate: '',
     endDate: '',
     reason: '',
@@ -47,7 +47,7 @@ export default function EmployeeLeavesPage() {
       const leaveRequest: LeaveRequest = {
         id: '',
         userId: user.id,
-        type: formData.type,
+        leaveType: formData.leaveType,
         startDate: new Date(formData.startDate),
         endDate: new Date(formData.endDate),
         reason: formData.reason,
@@ -58,7 +58,7 @@ export default function EmployeeLeavesPage() {
 
       await LeaveService.applyLeave(leaveRequest);
       setFormData({
-        type: 'casual',
+        leaveType: 'casual',
         startDate: '',
         endDate: '',
         reason: '',
@@ -122,8 +122,8 @@ export default function EmployeeLeavesPage() {
           <div>
             <label className="block text-sm font-medium mb-1">Leave Type</label>
             <select
-              value={formData.type}
-              onChange={(e) => handleInputChange('type', e.target.value)}
+              value={formData.leaveType}
+              onChange={(e) => handleInputChange('leaveType', e.target.value)}
               className="w-full border border-gray-300 rounded px-3 py-2"
               required
             >
@@ -190,7 +190,7 @@ export default function EmployeeLeavesPage() {
             <tbody>
               {leaveRequests.map((request) => (
                 <tr key={request.id} className="border-b">
-                  <td className="px-4 py-2 capitalize">{request.type}</td>
+                  <td className="px-4 py-2 capitalize">{request.leaveType}</td>
                   <td className="px-4 py-2">
                     {request.startDate.toDateString()}
                   </td>

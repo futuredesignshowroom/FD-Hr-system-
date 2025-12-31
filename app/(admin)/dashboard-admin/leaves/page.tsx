@@ -89,7 +89,7 @@ export default function AdminLeavesPage() {
             {leaveRequests.map((request) => (
               <tr key={request.id} className="border-b">
                 <td className="px-6 py-4">{getEmployeeName(request.userId)}</td>
-                <td className="px-6 py-4 capitalize">{request.type}</td>
+                <td className="px-6 py-4 capitalize">{request.leaveType}</td>
                 <td className="px-6 py-4">
                   {request.startDate.toDateString()}
                 </td>
