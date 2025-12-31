@@ -6,46 +6,53 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Users collection - Simplified to avoid circular dependencies
+    // Check if user is admin
+    function isAdmin() {
+      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Users collection - Admins can read all, users can read/update their own
     match /users/{userId} {
       // Users can read their own document
       allow read: if isAuth() && request.auth.uid == userId;
+      // Admins can read all users
+      allow read: if isAdmin();
       // Users can create their own profile
       allow create: if isAuth() && request.resource.data.id == request.auth.uid;
       // Users can update their own profile
       allow update: if isAuth() && request.auth.uid == userId;
+      // Admins can update any user
+      allow update: if isAdmin();
       // No one can delete
       allow delete: if false;
     }
 
-    // Attendance collection - Authenticated users can read all
+    // Attendance collection - Authenticated users can read, admins can write
     match /attendance/{document=**} {
       allow read: if isAuth();
-      allow write: if false;
+      allow write: if isAdmin();
     }
 
-    // Leaves collection - Authenticated users can read all
+    // Leaves collection - Authenticated users can read, admins can write
     match /leaves/{document=**} {
       allow read: if isAuth();
-      allow write: if false;
+      allow write: if isAdmin();
     }
 
-    // Salary collection - Authenticated users can read all
+    // Salary collection - Authenticated users can read, admins can write
     match /salary/{document=**} {
       allow read: if isAuth();
-      allow write: if false;
+      allow write: if isAdmin();
     }
 
-    // Leave Config collection
+    // Leave Config collection - Admins can read/write
     match /leaveConfig/{document=**} {
-      allow read: if isAuth();
-      allow write: if false;
+      allow read, write: if isAdmin();
     }
 
-    // Salary Config collection
+    // Salary Config collection - Admins can read/write
     match /salaryConfig/{document=**} {
-      allow read: if isAuth();
-      allow write: if false;
+      allow read, write: if isAdmin();
     }
 
     // Messages collection
@@ -55,8 +62,12 @@ service cloud.firestore {
         resource.data.senderId == request.auth.uid ||
         resource.data.recipientId == request.auth.uid
       );
+      // Admins can read all messages
+      allow read: if isAdmin();
       // Users can send messages
       allow create: if isAuth() && request.resource.data.senderId == request.auth.uid;
+      // Admins can create messages
+      allow create: if isAdmin();
       allow update, delete: if false;
     }
 
