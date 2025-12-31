@@ -29,14 +29,25 @@ service cloud.firestore {
 
     // Attendance collection - Authenticated users can read, admins can write
     match /attendance/{document=**} {
+      // Anyone authenticated can read attendance (own or admin)
       allow read: if isAuth();
-      allow write: if isAdmin();
+      // Allow users to create their own attendance records
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      // Admins can update or delete attendance records
+      allow update, delete: if isAdmin();
     }
 
-    // Leaves collection - Authenticated users can read, admins can write
+    // Leaves collection - Users can create their own leave requests, admins can manage
     match /leaves/{document=**} {
-      allow read: if isAuth();
-      allow write: if isAdmin();
+      // Users can read leaves if they are the owner; admins can read all
+      allow read: if isAuth() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+      // Users can create their own leave requests
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      // Admins can update or delete (approve/reject)
+      allow update, delete: if isAdmin();
     }
 
     // Salary collection - Authenticated users can read, admins can write
@@ -45,13 +56,22 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Employees collection - Users can read their own, admins can read/write all
+    // Employees collection - Users can read their own, can create their own record; admins can read/write all
     match /employees/{document=**} {
+      // Users can read their own document; admins can read all
       allow read: if isAuth() && (
         resource.data.userId == request.auth.uid ||
         isAdmin()
       );
-      allow write: if isAdmin();
+      // Allow users to create their own employee document on signup
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      // Allow users to update their own employee record, admins can update any
+      allow update: if isAuth() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+      // No one can delete employees via client
+      allow delete: if false;
     }
 
     // Leave Config collection - Admins can read/write
