@@ -2,14 +2,15 @@
 
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AuthService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/auth.store';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setUser } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,6 +18,16 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [lastUid, setLastUid] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [userRole, setUserRole] = useState<'admin' | 'employee'>('employee');
+
+  useEffect(() => {
+    const role = searchParams.get('role');
+    if (role === 'admin') {
+      setUserRole('admin');
+    } else {
+      setUserRole('employee');
+    }
+  }, [searchParams]);
 
   const loginUser = async (uid: string) => {
     try {
@@ -97,8 +108,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-      <h1 className="text-3xl font-bold mb-6 text-center">Employee Login</h1>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
+        <h1 className={`text-3xl font-bold mb-6 text-center ${
+          userRole === 'admin' ? 'text-green-600' : 'text-blue-600'
+        }`}>
+          {userRole === 'admin' ? 'Admin Login' : 'Employee Login'}
+        </h1>
 
       {error && (
         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
@@ -124,7 +140,9 @@ export default function LoginPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent ${
+              userRole === 'admin' ? 'focus:ring-green-500' : 'focus:ring-blue-500'
+            }`}
             required
           />
         </div>
@@ -137,7 +155,9 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent ${
+              userRole === 'admin' ? 'focus:ring-green-500' : 'focus:ring-blue-500'
+            }`}
             required
           />
         </div>
@@ -145,7 +165,11 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+          className={`w-full py-2 rounded-lg disabled:opacity-50 font-medium text-white ${
+            userRole === 'admin'
+              ? 'bg-green-600 hover:bg-green-700'
+              : 'bg-blue-600 hover:bg-blue-700'
+          }`}
         >
           {loading ? 'Loading...' : 'Login'}
         </button>
@@ -185,10 +209,51 @@ export default function LoginPage() {
 
       <p className="mt-6 text-center text-sm text-gray-600">
         Don't have an account?{' '}
-        <Link href="/signup" className="text-blue-600 hover:underline font-medium">
-          Sign up
+        <Link
+          href={userRole === 'admin' ? '/admin-signup' : '/signup'}
+          className={`font-medium ${
+            userRole === 'admin' ? 'text-green-600 hover:text-green-700' : 'text-blue-600 hover:text-blue-700'
+          }`}
+        >
+          {userRole === 'admin' ? 'Register as Admin' : 'Sign up'}
         </Link>
       </p>
+
+      <p className="mt-2 text-center text-sm text-gray-600">
+        {userRole === 'admin' ? (
+          <>
+            Login as{' '}
+            <Link href="/login?role=employee" className="text-blue-600 hover:text-blue-700 font-medium">
+              Employee
+            </Link>
+          </>
+        ) : (
+          <>
+            Login as{' '}
+            <Link href="/login?role=admin" className="text-green-600 hover:text-green-700 font-medium">
+              Admin
+            </Link>
+          </>
+        )}
+      </p>
+      </div>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <Suspense fallback={
+        <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-gray-600">Loading...</p>
+          </div>
+        </div>
+      }>
+        <LoginForm />
+      </Suspense>
     </div>
   );
 }

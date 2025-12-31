@@ -11,16 +11,22 @@ export default function Home() {
           </p>
           <div className="space-x-4">
             <a
-              href="/login"
+              href="/login?role=employee"
               className="inline-block px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
               Employee Login
             </a>
             <a
+              href="/login?role=admin"
+              className="inline-block px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            >
+              Admin Login
+            </a>
+            <a
               href="/admin-signup"
               className="inline-block px-6 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
             >
-              Admin Access
+              Admin Registration
             </a>
           </div>
         </div>
