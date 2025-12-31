@@ -42,7 +42,7 @@ export class AuthService {
         email: firebaseUser.email || '',
         name: userData.name,
         role: userData.role,
-        department: userData.department,
+        department: userData.department || '',
         createdAt: new Date(),
         updatedAt: new Date(),
       };
