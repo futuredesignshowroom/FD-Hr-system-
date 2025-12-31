@@ -23,6 +23,7 @@ export default function AdminSalaryPage() {
   const [error, setError] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeWithSalary | null>(null);
   const [showRulesModal, setShowRulesModal] = useState(false);
+  const [generatingSalary, setGeneratingSalary] = useState<string | null>(null);
   const [rulesForm, setRulesForm] = useState({
     baseSalary: 0,
     allowances: [] as { name: string; amount: number; type: 'fixed' | 'percentage' }[],
@@ -39,14 +40,29 @@ export default function AdminSalaryPage() {
       setLoading(true);
       const employeeData = await EmployeeService.getAllEmployees();
 
-      // Load salary configs for each employee
+      // Load salary configs and current salary for each employee
       const employeesWithSalary = await Promise.all(
         employeeData.map(async (emp) => {
           try {
             const config = await SalaryService.getSalaryConfig(emp.id);
-            return { ...emp, salaryConfig: config ?? undefined };
+            const currentDate = new Date();
+            const currentSalary = await SalaryService.getSalary(
+              emp.id,
+              currentDate.getMonth() + 1,
+              currentDate.getFullYear()
+            );
+            return { 
+              ...emp, 
+              salaryConfig: config ?? undefined,
+              currentSalary: currentSalary ? {
+                baseSalary: currentSalary.baseSalary,
+                allowances: currentSalary.totalAllowances,
+                deductions: currentSalary.totalDeductions,
+                netSalary: currentSalary.netSalary,
+              } : undefined
+            };
           } catch {
-            return { ...emp, salaryConfig: undefined };
+            return { ...emp, salaryConfig: undefined, currentSalary: undefined };
           }
         })
       );
@@ -132,6 +148,45 @@ export default function AdminSalaryPage() {
     }));
   };
 
+  const handleGenerateSalary = async (employee: EmployeeWithSalary) => {
+    if (!employee.salaryConfig) {
+      alert('Please set salary rules first');
+      return;
+    }
+
+    setGeneratingSalary(employee.id);
+    try {
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+
+      // Check if salary already exists for this month
+      const existingSalary = await SalaryService.getSalary(employee.id, currentMonth, currentYear);
+      if (existingSalary) {
+        alert('Salary already generated for this month');
+        return;
+      }
+
+      // Generate salary based on config
+      await SalaryService.calculateAndCreateSalary(
+        employee.id,
+        currentMonth,
+        currentYear,
+        employee.salaryConfig.baseSalary,
+        employee.salaryConfig.allowances,
+        [] // No deductions for now
+      );
+
+      alert('Salary generated successfully for ' + (employee.firstName + ' ' + employee.lastName).trim());
+      await loadEmployees(); // Refresh to show updated data
+    } catch (error) {
+      console.error('Error generating salary:', error);
+      alert('Failed to generate salary');
+    } finally {
+      setGeneratingSalary(null);
+    }
+  };
+
   if (loading) {
     return <Loader />;
   }
@@ -169,6 +224,7 @@ export default function AdminSalaryPage() {
               <th className="px-6 py-3 text-left font-semibold">Employee</th>
               <th className="px-6 py-3 text-left font-semibold">Department</th>
               <th className="px-6 py-3 text-left font-semibold">Base Salary</th>
+              <th className="px-6 py-3 text-left font-semibold">Current Month Salary</th>
               <th className="px-6 py-3 text-left font-semibold">Status</th>
               <th className="px-6 py-3 text-left font-semibold">Actions</th>
             </tr>
@@ -193,19 +249,44 @@ export default function AdminSalaryPage() {
                   )}
                 </td>
                 <td className="px-6 py-4">
-                  {employee.salaryConfig ? (
-                    <span className="text-green-600 font-medium">Configured</span>
+                  {employee.currentSalary ? (
+                    <div>
+                      <div className="font-semibold text-green-600">
+                        PKR {employee.currentSalary.netSalary.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Generated
+                      </div>
+                    </div>
                   ) : (
-                    <span className="text-orange-600 font-medium">Not Configured</span>
+                    <span className="text-orange-600">Not Generated</span>
                   )}
                 </td>
                 <td className="px-6 py-4">
-                  <button
-                    onClick={() => handleSetRules(employee)}
-                    className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
-                  >
-                    Set Salary by Rules
-                  </button>
+                  {employee.salaryConfig ? (
+                    <span className="text-green-600 font-medium">Rules Set</span>
+                  ) : (
+                    <span className="text-orange-600 font-medium">Rules Not Set</span>
+                  )}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSetRules(employee)}
+                      className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                    >
+                      Set Rules
+                    </button>
+                    {employee.salaryConfig && (
+                      <button
+                        onClick={() => handleGenerateSalary(employee)}
+                        disabled={generatingSalary === employee.id}
+                        className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {generatingSalary === employee.id ? 'Generating...' : 'Generate Salary'}
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
