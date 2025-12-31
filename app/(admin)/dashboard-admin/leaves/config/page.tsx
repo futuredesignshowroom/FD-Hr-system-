@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { LeaveConfigService } from '@/services/leave-config.service';
 import { EmployeeService } from '@/services/employee.service';
-import { LeavePolicy, LeaveBalance } from '@/types/leave';
+import { LeavePolicy, LeaveBalance, LeaveType } from '@/types/leave';
 import { Employee } from '@/types/employee';
 import Loader from '@/components/ui/Loader';
 
@@ -47,7 +47,29 @@ export default function LeaveConfigPage() {
   const loadEmployeeBalances = async (employeeId: string) => {
     try {
       const balances = await LeaveConfigService.getUserLeaveBalance(employeeId);
-      setEmployeeBalances(balances);
+      
+      // Ensure all leave types have balances, initialize defaults if missing
+      const leaveTypes: LeaveType[] = ['sick', 'casual', 'earned', 'unpaid', 'maternity', 'paternity'];
+      const currentYear = new Date().getFullYear();
+      
+      const completeBalances = leaveTypes.map(leaveType => {
+        const existing = balances.find(b => b.leaveType === leaveType && b.year === currentYear);
+        if (existing) {
+          return existing;
+        } else {
+          return {
+            userId: employeeId,
+            leaveType,
+            totalAllowed: 0, // Default to 0, admin can set
+            used: 0,
+            remaining: 0,
+            carryForward: 0,
+            year: currentYear,
+          };
+        }
+      });
+      
+      setEmployeeBalances(completeBalances);
     } catch (error) {
       console.error('Error loading employee balances:', error);
     }
