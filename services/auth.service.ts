@@ -95,7 +95,43 @@ export class AuthService {
         email,
         password
       );
-      return userCredential.user;
+      const firebaseUser = userCredential.user;
+
+      // Defensive: ensure employee record exists for employee users
+      try {
+        const currentUser = await this.getCurrentUser(firebaseUser.uid);
+        if (currentUser && currentUser.role === 'employee') {
+          try {
+            await EmployeeService.getEmployeeProfile(firebaseUser.uid);
+          } catch (err) {
+            // If profile not found, create a basic employee profile
+            const nameSource = currentUser.name || firebaseUser.displayName || 'User';
+            const [firstName, ...lastNameParts] = nameSource.split(' ');
+            const lastName = lastNameParts.join(' ') || '';
+
+            const employee: Employee = {
+              id: '',
+              userId: firebaseUser.uid,
+              employeeId: `EMP${firebaseUser.uid.slice(0, 8).toUpperCase()}`,
+              firstName,
+              lastName,
+              email: currentUser.email || firebaseUser.email || '',
+              department: currentUser.department || '',
+              position: 'Employee',
+              dateOfJoining: new Date(),
+              status: 'active',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+
+            await EmployeeService.createEmployee(employee);
+          }
+        }
+      } catch (err) {
+        console.warn('Error ensuring employee profile on login:', err);
+      }
+
+      return firebaseUser;
     } catch (error) {
       console.error('Login error:', error);
       throw this.handleAuthError(error as AuthError);
