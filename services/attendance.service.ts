@@ -142,35 +142,28 @@ export class AttendanceService {
   }
 
   /**
-   * Mark attendance manually (Admin only)
+   * Get all attendance records for a user
    */
-  static async markAttendance(
-    userId: string,
-    date: Date,
-    status: AttendanceStatus,
-    remarks?: string
-  ): Promise<Attendance> {
+  static async getUserAttendance(userId: string): Promise<Attendance[]> {
     try {
-      const attendance: Attendance = {
-        id: '',
-        userId,
-        date,
-        status,
-        remarks,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const docRef = await FirestoreDB.addDocument(
+      return await FirestoreDB.queryCollection<Attendance>(
         this.COLLECTION,
-        attendance
+        [where('userId', '==', userId)]
       );
-      attendance.id = docRef.id;
-
-      return attendance;
     } catch (error) {
-      console.error('Error marking attendance:', error);
+      console.error('Error getting user attendance:', error);
       throw error;
     }
   }
-}
+
+  /**
+   * Get all attendance records (Admin only)
+   */
+  static async getAllAttendance(): Promise<Attendance[]> {
+    try {
+      return await FirestoreDB.getCollection<Attendance>(this.COLLECTION);
+    } catch (error) {
+      console.error('Error getting all attendance:', error);
+      throw error;
+    }
+  }

@@ -1,96 +1,159 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { EmployeeService } from '@/services/employee.service';
+import { SalaryService } from '@/services/salary.service';
+import { Employee } from '@/types/employee';
+import { SalaryConfig } from '@/types/salary';
+import Loader from '@/components/ui/Loader';
 
-interface EmployeeSalary {
-  id: string;
-  name: string;
-  baseSalary: number;
-  allowances: number;
-  deductions: number;
-  netSalary: number;
+interface EmployeeWithSalary extends Employee {
+  salaryConfig?: SalaryConfig;
+  currentSalary?: {
+    baseSalary: number;
+    allowances: number;
+    deductions: number;
+    netSalary: number;
+  };
 }
 
 export default function AdminSalaryPage() {
-  const [employees, setEmployees] = useState<EmployeeSalary[]>([
-    {
-      id: '1',
-      name: 'John Doe',
-      baseSalary: 50000,
-      allowances: 5000,
-      deductions: 2000,
-      netSalary: 53000,
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      baseSalary: 45000,
-      allowances: 4000,
-      deductions: 1500,
-      netSalary: 47500,
-    },
-    {
-      id: '3',
-      name: 'Ali Ahmed',
-      baseSalary: 40000,
-      allowances: 3500,
-      deductions: 1200,
-      netSalary: 42300,
-    },
-  ]);
-
-  const [editingEmployee, setEditingEmployee] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({
+  const [employees, setEmployees] = useState<EmployeeWithSalary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeWithSalary | null>(null);
+  const [showRulesModal, setShowRulesModal] = useState(false);
+  const [rulesForm, setRulesForm] = useState({
     baseSalary: 0,
-    allowances: 0,
-    deductions: 0,
+    allowances: [] as { name: string; amount: number; type: 'fixed' | 'percentage' }[],
+    totalLeavesAllowed: 30,
+    workingDaysPerMonth: 26,
   });
 
-  const handleEdit = (employee: EmployeeSalary) => {
-    setEditingEmployee(employee.id);
-    setEditForm({
-      baseSalary: employee.baseSalary,
-      allowances: employee.allowances,
-      deductions: employee.deductions,
-    });
+  useEffect(() => {
+    loadEmployees();
+  }, []);
+
+  const loadEmployees = async () => {
+    try {
+      setLoading(true);
+      const employeeData = await EmployeeService.getAllEmployees();
+
+      // Load salary configs for each employee
+      const employeesWithSalary = await Promise.all(
+        employeeData.map(async (emp) => {
+          try {
+            const config = await SalaryService.getSalaryConfig(emp.id);
+            return { ...emp, salaryConfig: config };
+          } catch {
+            return emp;
+          }
+        })
+      );
+
+      setEmployees(employeesWithSalary);
+    } catch (err) {
+      setError('Failed to load employees');
+      console.error('Error loading employees:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSave = () => {
-    if (!editingEmployee) return;
+  const handleSetRules = (employee: EmployeeWithSalary) => {
+    setSelectedEmployee(employee);
+    if (employee.salaryConfig) {
+      setRulesForm({
+        baseSalary: employee.salaryConfig.baseSalary,
+        allowances: employee.salaryConfig.allowances,
+        totalLeavesAllowed: employee.salaryConfig.totalLeavesAllowed,
+        workingDaysPerMonth: employee.salaryConfig.workingDaysPerMonth,
+      });
+    } else {
+      setRulesForm({
+        baseSalary: 30000, // Default
+        allowances: [],
+        totalLeavesAllowed: 30,
+        workingDaysPerMonth: 26,
+      });
+    }
+    setShowRulesModal(true);
+  };
 
-    const netSalary = editForm.baseSalary + editForm.allowances - editForm.deductions;
+  const handleSaveRules = async () => {
+    if (!selectedEmployee) return;
 
-    setEmployees(prev =>
-      prev.map(emp =>
-        emp.id === editingEmployee
-          ? {
-              ...emp,
-              baseSalary: editForm.baseSalary,
-              allowances: editForm.allowances,
-              deductions: editForm.deductions,
-              netSalary,
-            }
-          : emp
+    try {
+      const config: SalaryConfig = {
+        userId: selectedEmployee.id,
+        baseSalary: rulesForm.baseSalary,
+        allowances: rulesForm.allowances,
+        totalLeavesAllowed: rulesForm.totalLeavesAllowed,
+        workingDaysPerMonth: rulesForm.workingDaysPerMonth,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await SalaryService.setSalaryConfig(config);
+      setShowRulesModal(false);
+      setSelectedEmployee(null);
+      await loadEmployees(); // Reload to show updated config
+    } catch (err) {
+      console.error('Error saving salary rules:', err);
+      alert('Failed to save salary rules');
+    }
+  };
+
+  const addAllowance = () => {
+    setRulesForm(prev => ({
+      ...prev,
+      allowances: [...prev.allowances, { name: '', amount: 0, type: 'fixed' }]
+    }));
+  };
+
+  const updateAllowance = (index: number, field: string, value: any) => {
+    setRulesForm(prev => ({
+      ...prev,
+      allowances: prev.allowances.map((allowance, i) =>
+        i === index ? { ...allowance, [field]: value } : allowance
       )
+    }));
+  };
+
+  const removeAllowance = (index: number) => {
+    setRulesForm(prev => ({
+      ...prev,
+      allowances: prev.allowances.filter((_, i) => i !== index)
+    }));
+  };
+
+  if (loading) {
+    return <Loader />;
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-red-600">{error}</p>
+        <button
+          onClick={loadEmployees}
+          className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
     );
-
-    setEditingEmployee(null);
-  };
-
-  const handleCalculateSalaries = () => {
-    // In a real app, this would trigger salary calculation for all employees
-    alert('Salaries calculated and updated for all employees!');
-  };
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Salary Management</h1>
         <button
-          onClick={handleCalculateSalaries}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          onClick={loadEmployees}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
         >
-          Calculate Salaries
+          Refresh Data
         </button>
       </div>
 
@@ -99,91 +162,173 @@ export default function AdminSalaryPage() {
           <thead className="bg-gray-100">
             <tr>
               <th className="px-6 py-3 text-left font-semibold">Employee</th>
-              <th className="px-6 py-3 text-left font-semibold">Base Salary (PKR)</th>
-              <th className="px-6 py-3 text-left font-semibold">Allowances (PKR)</th>
-              <th className="px-6 py-3 text-left font-semibold">Deductions (PKR)</th>
-              <th className="px-6 py-3 text-left font-semibold">Net Salary (PKR)</th>
-              <th className="px-6 py-3 text-left font-semibold">Action</th>
+              <th className="px-6 py-3 text-left font-semibold">Department</th>
+              <th className="px-6 py-3 text-left font-semibold">Base Salary</th>
+              <th className="px-6 py-3 text-left font-semibold">Status</th>
+              <th className="px-6 py-3 text-left font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody>
             {employees.map((employee) => (
               <tr key={employee.id} className="border-b hover:bg-gray-50">
-                <td className="px-6 py-4 font-medium">{employee.name}</td>
-                {editingEmployee === employee.id ? (
-                  <>
-                    <td className="px-6 py-4">
-                      <input
-                        type="number"
-                        value={editForm.baseSalary}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, baseSalary: Number(e.target.value) }))}
-                        className="w-full border border-gray-300 rounded px-2 py-1"
-                      />
-                    </td>
-                    <td className="px-6 py-4">
-                      <input
-                        type="number"
-                        value={editForm.allowances}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, allowances: Number(e.target.value) }))}
-                        className="w-full border border-gray-300 rounded px-2 py-1"
-                      />
-                    </td>
-                    <td className="px-6 py-4">
-                      <input
-                        type="number"
-                        value={editForm.deductions}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, deductions: Number(e.target.value) }))}
-                        className="w-full border border-gray-300 rounded px-2 py-1"
-                      />
-                    </td>
-                    <td className="px-6 py-4 font-semibold">
-                      PKR {(editForm.baseSalary + editForm.allowances - editForm.deductions).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 space-x-2">
-                      <button
-                        onClick={handleSave}
-                        className="text-green-600 hover:underline"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setEditingEmployee(null)}
-                        className="text-gray-600 hover:underline"
-                      >
-                        Cancel
-                      </button>
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    <td className="px-6 py-4">PKR {employee.baseSalary.toLocaleString()}</td>
-                    <td className="px-6 py-4">PKR {employee.allowances.toLocaleString()}</td>
-                    <td className="px-6 py-4">PKR {employee.deductions.toLocaleString()}</td>
-                    <td className="px-6 py-4 font-semibold">PKR {employee.netSalary.toLocaleString()}</td>
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => handleEdit(employee)}
-                        className="text-blue-600 hover:underline"
-                      >
-                        Edit
-                      </button>
-                    </td>
-                  </>
-                )}
+                <td className="px-6 py-4">
+                  <div>
+                    <div className="font-medium">{employee.name}</div>
+                    <div className="text-gray-500 text-xs">{employee.email}</div>
+                  </div>
+                </td>
+                <td className="px-6 py-4">{employee.department}</td>
+                <td className="px-6 py-4">
+                  {employee.salaryConfig ? (
+                    <span className="font-semibold">
+                      PKR {employee.salaryConfig.baseSalary.toLocaleString()}
+                    </span>
+                  ) : (
+                    <span className="text-gray-500">Not Set</span>
+                  )}
+                </td>
+                <td className="px-6 py-4">
+                  {employee.salaryConfig ? (
+                    <span className="text-green-600 font-medium">Configured</span>
+                  ) : (
+                    <span className="text-orange-600 font-medium">Not Configured</span>
+                  )}
+                </td>
+                <td className="px-6 py-4">
+                  <button
+                    onClick={() => handleSetRules(employee)}
+                    className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                  >
+                    Set Salary by Rules
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
+      {/* Salary Rules Modal */}
+      {showRulesModal && selectedEmployee && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-4">
+              Set Salary Rules for {selectedEmployee.name}
+            </h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Base Salary (PKR)
+                </label>
+                <input
+                  type="number"
+                  value={rulesForm.baseSalary}
+                  onChange={(e) => setRulesForm(prev => ({ ...prev, baseSalary: Number(e.target.value) }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  placeholder="Enter base salary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Working Days Per Month
+                </label>
+                <input
+                  type="number"
+                  value={rulesForm.workingDaysPerMonth}
+                  onChange={(e) => setRulesForm(prev => ({ ...prev, workingDaysPerMonth: Number(e.target.value) }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Total Leaves Allowed Per Year
+                </label>
+                <input
+                  type="number"
+                  value={rulesForm.totalLeavesAllowed}
+                  onChange={(e) => setRulesForm(prev => ({ ...prev, totalLeavesAllowed: Number(e.target.value) }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Allowances
+                  </label>
+                  <button
+                    onClick={addAllowance}
+                    className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                  >
+                    Add Allowance
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {rulesForm.allowances.map((allowance, index) => (
+                    <div key={index} className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        placeholder="Allowance name"
+                        value={allowance.name}
+                        onChange={(e) => updateAllowance(index, 'name', e.target.value)}
+                        className="flex-1 border border-gray-300 rounded px-3 py-2"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Amount"
+                        value={allowance.amount}
+                        onChange={(e) => updateAllowance(index, 'amount', Number(e.target.value))}
+                        className="w-24 border border-gray-300 rounded px-3 py-2"
+                      />
+                      <select
+                        value={allowance.type}
+                        onChange={(e) => updateAllowance(index, 'type', e.target.value)}
+                        className="w-24 border border-gray-300 rounded px-3 py-2"
+                      >
+                        <option value="fixed">Fixed</option>
+                        <option value="percentage">%</option>
+                      </select>
+                      <button
+                        onClick={() => removeAllowance(index)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setShowRulesModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveRules}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                Save Rules
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="font-semibold text-blue-800 mb-2">Salary Management Tips</h3>
         <ul className="text-sm text-blue-700 space-y-1">
-          <li>• Base salary is the core monthly compensation</li>
-          <li>• Allowances include transportation, medical, or other benefits</li>
-          <li>• Deductions may include taxes, insurance, or leave penalties</li>
-          <li>• Net salary is automatically calculated as: Base + Allowances - Deductions</li>
-          <li>• Use "Calculate Salaries" to process payroll for the current month</li>
+          <li>• Set base salary and allowances for each employee</li>
+          <li>• Configure working days and leave allowances</li>
+          <li>• Allowances can be fixed amounts or percentages</li>
+          <li>• Salary calculations will be based on these rules</li>
+          <li>• Employees will see their salary details in their dashboard</li>
         </ul>
       </div>
     </div>
