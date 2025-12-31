@@ -90,14 +90,13 @@ export default function EmployeeLeavesPage() {
 
     setSubmitting(true);
     try {
-      const leaveRequest: LeaveRequest = {
-        id: '',
+      const leaveRequest = {
         userId: user.id,
         leaveType: formData.leaveType,
         startDate: start,
         endDate: end,
         reason: formData.reason.trim(),
-        status: 'pending',
+        status: 'pending' as const,
         createdAt: new Date(),
         updatedAt: new Date(),
       };

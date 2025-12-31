@@ -19,9 +19,10 @@ export class LeaveService {
   /**
    * Apply for leave
    */
-  static async applyLeave(leaveRequest: LeaveRequest): Promise<void> {
+  static async applyLeave(leaveRequest: Omit<LeaveRequest, 'id'>): Promise<string> {
     try {
-      await FirestoreDB.addDocument(this.COLLECTION, leaveRequest);
+      const docRef = await FirestoreDB.addDocument(this.COLLECTION, leaveRequest);
+      return docRef.id;
     } catch (error) {
       console.error('Error applying for leave:', error);
       throw error;

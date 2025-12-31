@@ -33,17 +33,17 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case 'apply':
-        const applyResult = await LeaveService.applyLeave({
+        const docId = await LeaveService.applyLeave({
           userId,
           startDate,
           endDate,
           leaveType,
           reason,
           status: 'pending',
-          totalDays: 0,
-          appliedAt: new Date(),
-        } as any);
-        return NextResponse.json(applyResult, { status: 201 });
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        return NextResponse.json({ id: docId, message: 'Leave request submitted successfully' }, { status: 201 });
 
       case 'approve':
         await LeaveService.approveLeave(leaveDocId, adminId);
