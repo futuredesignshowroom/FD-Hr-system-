@@ -52,6 +52,13 @@ export default function SignupPage() {
         }
       );
       setUser(user);
+      
+      // Set auth cookies for middleware
+      const cookieMaxAge = 7 * 24 * 60 * 60; // 7 days
+      document.cookie = `auth-token=${user.id}; Max-Age=${cookieMaxAge}; path=/`;
+      document.cookie = `user-role=${user.role}; Max-Age=${cookieMaxAge}; path=/`;
+      document.cookie = `user-id=${user.id}; Max-Age=${cookieMaxAge}; path=/`;
+      
       router.push('/dashboard-emp');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed');
@@ -69,6 +76,13 @@ export default function SignupPage() {
       const user = await AuthService.getCurrentUser(firebaseUser.uid);
       if (user) {
         setUser(user);
+        
+        // Set auth cookies for middleware
+        const cookieMaxAge = 7 * 24 * 60 * 60; // 7 days
+        document.cookie = `auth-token=${user.id}; Max-Age=${cookieMaxAge}; path=/`;
+        document.cookie = `user-role=${user.role}; Max-Age=${cookieMaxAge}; path=/`;
+        document.cookie = `user-id=${user.id}; Max-Age=${cookieMaxAge}; path=/`;
+        
         router.push('/dashboard-emp');
       } else {
         // User was created in Firebase but profile fetch failed - shouldn't happen

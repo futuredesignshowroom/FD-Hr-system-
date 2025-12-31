@@ -29,7 +29,7 @@ export function middleware(request: NextRequest) {
   }
 
   if (token) {
-    if (isAuthRoute && pathname !== '/') {
+    if (isAuthRoute && pathname !== '/' && pathname !== '/admin-signup') {
       // Redirect logged-in users away from auth routes
       if (role === 'admin') {
         return NextResponse.redirect(new URL('/dashboard-admin', request.url));

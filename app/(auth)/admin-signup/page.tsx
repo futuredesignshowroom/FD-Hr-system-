@@ -64,6 +64,13 @@ export default function AdminSignupPage() {
       );
 
       setUser(user);
+      
+      // Set auth cookies for middleware
+      const cookieMaxAge = 7 * 24 * 60 * 60; // 7 days
+      document.cookie = `auth-token=${user.id}; Max-Age=${cookieMaxAge}; path=/`;
+      document.cookie = `user-role=${user.role}; Max-Age=${cookieMaxAge}; path=/`;
+      document.cookie = `user-id=${user.id}; Max-Age=${cookieMaxAge}; path=/`;
+      
       router.push('/dashboard-admin');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Admin registration failed');
