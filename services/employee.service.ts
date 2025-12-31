@@ -12,7 +12,13 @@ export class EmployeeService {
    */
   static async createEmployee(employee: Employee): Promise<void> {
     try {
-      await FirestoreDB.addDocument(this.COLLECTION, employee);
+      // Use user's UID as document ID when available so security rules can allow user-created documents
+      const docId = employee.userId || undefined;
+      // Ensure the employee.id field matches the document ID for consistency
+      if (docId) {
+        employee.id = docId;
+      }
+      await FirestoreDB.addDocument(this.COLLECTION, employee, docId);
     } catch (error) {
       console.error('Error creating employee:', error);
       throw error;
