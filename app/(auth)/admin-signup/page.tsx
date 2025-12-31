@@ -163,9 +163,10 @@ export default function AdminSignupPage() {
         </button>
       </form>
 
-      <p className="mt-4 text-center text-sm text-gray-600">
-        <Link href="/login" className="text-blue-600 hover:underline">
-          Back to Login
+      <p className="mt-6 text-center text-sm text-gray-600">
+        Already have an account?{' '}
+        <Link href="/login" className="text-blue-600 hover:underline font-medium">
+          Login here
         </Link>
       </p>
     </div>
