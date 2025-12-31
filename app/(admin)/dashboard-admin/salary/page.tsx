@@ -44,14 +44,14 @@ export default function AdminSalaryPage() {
         employeeData.map(async (emp) => {
           try {
             const config = await SalaryService.getSalaryConfig(emp.id);
-            return { ...emp, salaryConfig: config };
+            return { ...emp, salaryConfig: config ?? undefined };
           } catch {
-            return emp;
+            return { ...emp, salaryConfig: undefined };
           }
         })
       );
 
-      setEmployees(employeesWithSalary);
+      setEmployees(employeesWithSalary as EmployeeWithSalary[]);
     } catch (err) {
       setError('Failed to load employees');
       console.error('Error loading employees:', err);
@@ -87,7 +87,12 @@ export default function AdminSalaryPage() {
       const config: SalaryConfig = {
         userId: selectedEmployee.id,
         baseSalary: rulesForm.baseSalary,
-        allowances: rulesForm.allowances,
+        allowances: rulesForm.allowances.map((a, i) => ({
+          id: (a.name || 'allowance') + '-' + i,
+          name: a.name,
+          amount: a.amount,
+          type: a.type as 'fixed' | 'percentage',
+        })),
         totalLeavesAllowed: rulesForm.totalLeavesAllowed,
         workingDaysPerMonth: rulesForm.workingDaysPerMonth,
         createdAt: new Date(),
@@ -173,7 +178,7 @@ export default function AdminSalaryPage() {
               <tr key={employee.id} className="border-b hover:bg-gray-50">
                 <td className="px-6 py-4">
                   <div>
-                    <div className="font-medium">{employee.name}</div>
+                    <div className="font-medium">{(employee.firstName + ' ' + employee.lastName).trim()}</div>
                     <div className="text-gray-500 text-xs">{employee.email}</div>
                   </div>
                 </td>
@@ -213,7 +218,7 @@ export default function AdminSalaryPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h2 className="text-2xl font-bold mb-4">
-              Set Salary Rules for {selectedEmployee.name}
+              Set Salary Rules for {(selectedEmployee.firstName + ' ' + selectedEmployee.lastName).trim()}
             </h2>
 
             <div className="space-y-4">

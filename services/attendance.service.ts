@@ -167,3 +167,38 @@ export class AttendanceService {
       throw error;
     }
   }
+
+  /**
+   * Mark attendance manually (Admin only)
+   */
+  static async markAttendance(
+    userId: string,
+    date: Date,
+    status: AttendanceStatus,
+    remarks?: string
+  ): Promise<Attendance> {
+    try {
+      const attendance: Attendance = {
+        id: '',
+        userId,
+        date,
+        status,
+        remarks,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const docRef = await FirestoreDB.addDocument(
+        this.COLLECTION,
+        attendance
+      );
+      attendance.id = docRef.id;
+
+      return attendance;
+    } catch (error) {
+      console.error('Error marking attendance:', error);
+      throw error;
+    }
+  }
+
+}

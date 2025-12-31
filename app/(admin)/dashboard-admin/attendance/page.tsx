@@ -1,10 +1,10 @@
 'use client';
-
+import { Employee } from '@/types/employee';
 import { useState, useEffect } from 'react';
 import { AttendanceService } from '@/services/attendance.service';
 import { EmployeeService } from '@/services/employee.service';
 import { Attendance, AttendanceStatus } from '@/types/attendance';
-import { Employee } from '@/types/employee';
+ 
 import Loader from '@/components/ui/Loader';
 
 interface AttendanceWithEmployee extends Attendance {
@@ -14,7 +14,7 @@ interface AttendanceWithEmployee extends Attendance {
 
 export default function AdminAttendancePage() {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceWithEmployee[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -31,8 +31,7 @@ export default function AdminAttendancePage() {
       const allAttendance = await AttendanceService.getAllAttendance();
 
       // Load all employees for name lookup
-      const allEmployees = await EmployeeService.getAllEmployees();
-      setEmployees(allEmployees);
+      const allEmployees: Employee[] = await EmployeeService.getAllEmployees();
 
       // Filter attendance by selected date and add employee info
       const filteredAttendance = allAttendance
@@ -44,7 +43,7 @@ export default function AdminAttendancePage() {
           const employee = allEmployees.find(emp => emp.id === record.userId);
           return {
             ...record,
-            employeeName: employee?.name || 'Unknown',
+            employeeName: ((employee?.firstName || '') + ' ' + (employee?.lastName || '')).trim() || 'Unknown',
             employeeEmail: employee?.email || 'Unknown',
           };
         })
@@ -233,16 +232,4 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
-                  Present
-                </span>
-              </td>
-              <td className="px-6 py-4">
-                <button className="text-blue-600 hover:underline">Edit</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
+ 

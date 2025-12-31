@@ -28,11 +28,14 @@ export default function AdminEmployeesPage() {
     }
   };
 
-  const filteredEmployees = employees.filter(employee =>
-    employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.department.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredEmployees = employees.filter(employee => {
+    const fullName = ((employee.firstName || '') + ' ' + (employee.lastName || '')).trim();
+    return (
+      fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (employee.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (employee.department || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   if (loading) {
     return <Loader />;
@@ -87,7 +90,7 @@ export default function AdminEmployeesPage() {
           <tbody>
             {filteredEmployees.map((employee) => (
               <tr key={employee.id} className="border-b hover:bg-gray-50">
-                <td className="px-6 py-4 font-medium">{employee.name}</td>
+                <td className="px-6 py-4 font-medium">{(employee.firstName + ' ' + employee.lastName).trim()}</td>
                 <td className="px-6 py-4">{employee.email}</td>
                 <td className="px-6 py-4">{employee.department}</td>
                 <td className="px-6 py-4">

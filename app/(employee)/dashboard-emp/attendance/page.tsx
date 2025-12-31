@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { AttendanceService } from '@/services/attendance.service';
-import { useAuthStore } from '@/store/auth/store';
+import { useAuthStore } from '@/store/auth.store';
 import { Attendance } from '@/types/attendance';
 import Loader from '@/components/ui/Loader';
 
