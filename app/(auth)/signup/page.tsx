@@ -70,6 +70,10 @@ export default function SignupPage() {
       if (user) {
         setUser(user);
         router.push('/dashboard-emp');
+      } else {
+        // User was created in Firebase but profile fetch failed - shouldn't happen
+        // but try again
+        setError('Failed to load user profile. Please try again.');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Google Sign-Up failed');

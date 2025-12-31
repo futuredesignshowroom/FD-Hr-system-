@@ -26,11 +26,13 @@ export default function LoginPage() {
         setLastUid(null);
         router.push(user.role === 'admin' ? '/dashboard-admin' : '/dashboard-emp');
       } else {
-        setError('User profile not found. Please sign up first.');
+        setError('User profile not found. Please sign up first or contact an administrator.');
+        setLastUid(null);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load user profile';
       setError(errorMessage);
+      setLastUid(uid); // Keep UID for retry
     }
   };
 

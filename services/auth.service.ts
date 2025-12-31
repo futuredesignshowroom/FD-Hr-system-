@@ -134,10 +134,11 @@ export class AuthService {
    */
   static async getCurrentUser(uid: string): Promise<User | null> {
     try {
-      return await FirestoreDB.getDocument<User>('users', uid);
+      const user = await FirestoreDB.getDocument<User>('users', uid);
+      return user; // Returns null if document doesn't exist, throws only on actual errors
     } catch (error) {
       console.error('Error getting current user:', error);
-      throw error; // Rethrow to let caller handle retry
+      throw error; // Rethrow actual errors so caller can handle retry
     }
   }
 

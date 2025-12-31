@@ -142,9 +142,10 @@ export class FirestoreDB {
         if (docSnap.exists()) {
           return { id: docSnap.id, ...docSnap.data() } as T;
         }
-        return null;
+        return null; // Document doesn't exist - return null instead of throwing
       });
     } catch (error: any) {
+      // Only throw for actual errors, not for missing documents
       const friendlyError = parseFirebaseError(error);
       console.error(`Error getting document from ${collectionName}:`, error);
       throw friendlyError;
