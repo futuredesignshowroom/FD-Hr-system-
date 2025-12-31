@@ -136,18 +136,23 @@ export class FirestoreDB {
       throw new Error('Firebase not initialized. Please check your environment variables.');
     }
     try {
+      console.log(`[Firestore] Fetching ${collectionName}/${docId}...`);
       return await withRetry(async () => {
         const docRef = doc(db!, collectionName, docId);
+        console.log(`[Firestore] Calling getDoc...`);
         const docSnap = await getDoc(docRef);
+        console.log(`[Firestore] Document exists:`, docSnap.exists());
         if (docSnap.exists()) {
+          console.log(`[Firestore] Document data retrieved successfully`);
           return { id: docSnap.id, ...docSnap.data() } as T;
         }
+        console.log(`[Firestore] Document does not exist, returning null`);
         return null; // Document doesn't exist - return null instead of throwing
       });
     } catch (error: any) {
       // Only throw for actual errors, not for missing documents
+      console.error(`[Firestore] Error getting document from ${collectionName}:`, error);
       const friendlyError = parseFirebaseError(error);
-      console.error(`Error getting document from ${collectionName}:`, error);
       throw friendlyError;
     }
   }

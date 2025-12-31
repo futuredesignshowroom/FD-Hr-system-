@@ -134,10 +134,12 @@ export class AuthService {
    */
   static async getCurrentUser(uid: string): Promise<User | null> {
     try {
+      console.log(`[Auth] Getting current user with uid: ${uid}`);
       const user = await FirestoreDB.getDocument<User>('users', uid);
+      console.log(`[Auth] User fetched:`, user ? 'found' : 'not found');
       return user; // Returns null if document doesn't exist, throws only on actual errors
     } catch (error) {
-      console.error('Error getting current user:', error);
+      console.error('[Auth] Error getting current user:', error);
       throw error; // Rethrow actual errors so caller can handle retry
     }
   }
@@ -150,15 +152,21 @@ export class AuthService {
       case 'auth/email-already-in-use':
         return new Error('Email already in use');
       case 'auth/invalid-email':
-        return new Error('Invalid email');
+        return new Error('Invalid email address');
       case 'auth/weak-password':
-        return new Error('Password is too weak');
+        return new Error('Password is too weak (minimum 6 characters)');
       case 'auth/user-not-found':
-        return new Error('User not found');
+        return new Error('Email not found. Please sign up first.');
       case 'auth/wrong-password':
-        return new Error('Wrong password');
+        return new Error('Incorrect password');
+      case 'auth/invalid-credential':
+        return new Error('Invalid email or password. Please check and try again.');
+      case 'auth/operation-not-allowed':
+        return new Error('Email/password sign-in is not enabled');
+      case 'auth/too-many-requests':
+        return new Error('Too many failed login attempts. Please try again later.');
       default:
-        return new Error(error.message);
+        return new Error(error.message || 'Authentication failed');
     }
   }
 }
