@@ -47,8 +47,8 @@ export class AuthService {
         updatedAt: new Date(),
       };
 
-      // Save user to Firestore
-      await FirestoreDB.addDocument('users', user);
+      // Save user to Firestore with explicit document ID
+      await FirestoreDB.addDocument('users', user, firebaseUser.uid);
 
       return user;
     } catch (error) {

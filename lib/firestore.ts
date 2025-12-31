@@ -3,6 +3,7 @@
 import {
   collection,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   doc,
@@ -116,15 +117,26 @@ export class FirestoreDB {
    */
   static async addDocument<T extends Record<string, any>>(
     collectionName: string,
-    data: T
+    data: T,
+    docId?: string
   ): Promise<DocumentReference> {
     if (!db) {
       throw new Error('Firebase not initialized. Please check your environment variables.');
     }
     try {
-      return await withRetry(() =>
-        addDoc(collection(db!, collectionName), this.prepareData(data))
-      );
+      const collectionRef = collection(db!, collectionName);
+      // If docId is provided, use setDoc with explicit ID, otherwise use addDoc with auto-generated ID
+      if (docId) {
+        const docRef = doc(collectionRef, docId);
+        await withRetry(() =>
+          setDoc(docRef, this.prepareData(data))
+        );
+        return docRef;
+      } else {
+        return await withRetry(() =>
+          addDoc(collectionRef, this.prepareData(data))
+        );
+      }
     } catch (error: any) {
       const friendlyError = parseFirebaseError(error);
       console.error(`Error adding document to ${collectionName}:`, error);
