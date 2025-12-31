@@ -31,6 +31,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
   logout: () => {
     set({ user: null, error: null });
     localStorage.removeItem('auth_user');
+    // Clear auth cookies
+    document.cookie = 'auth-token=; Max-Age=0; path=/'; 
+    document.cookie = 'user-role=; Max-Age=0; path=/'; 
+    document.cookie = 'user-id=; Max-Age=0; path=/'; 
   },
   hydrate: () => {
     try {

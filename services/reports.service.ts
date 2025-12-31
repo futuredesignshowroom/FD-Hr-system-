@@ -344,53 +344,107 @@ export class ReportsService {
 
       // Get attendance for current month
       const attendanceRef = collection(firestore, 'attendance');
-      const monthAttendance = await getDocs(
-        query(
-          attendanceRef,
-          where('userId', '==', userId),
-          where('date', '>=', monthStart),
-          where('date', '<=', monthEnd)
-        )
-      );
+      let presentDays = 0;
+      let totalDays = 0;
+      let attendancePercentage = 0;
 
-      const presentDays = monthAttendance.docs.filter(
-        (doc: any) => doc.data().status === 'present'
-      ).length;
-      const totalDays = monthAttendance.size;
-      const attendancePercentage =
-        totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+      try {
+        const monthAttendance = await getDocs(
+          query(
+            attendanceRef,
+            where('userId', '==', userId),
+            where('date', '>=', monthStart),
+            where('date', '<=', monthEnd)
+          )
+        );
 
-      // Get leaves for current month
-      const leavesRef = collection(firestore, 'leaves');
-      const monthLeaves = await getDocs(
-        query(
-          leavesRef,
-          where('userId', '==', userId),
-          where('status', '==', 'approved'),
-          where('startDate', '>=', monthStart),
-          where('startDate', '<=', monthEnd)
-        )
-      );
+        presentDays = monthAttendance.docs.filter(
+          (doc: any) => doc.data().status === 'present'
+        ).length;
+        totalDays = monthAttendance.size;
+        attendancePercentage =
+          totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+      } catch (attendanceError: any) {
+        console.warn('Attendance query failed (may need index):', attendanceError);
+        // Fallback: get all attendance for user and filter in memory
+        const allAttendance = await getDocs(
+          query(attendanceRef, where('userId', '==', userId))
+        );
+        const monthAttendance = allAttendance.docs.filter((doc: any) => {
+          const date = doc.data().date;
+          return date >= monthStart && date <= monthEnd;
+        });
+        presentDays = monthAttendance.filter(
+          (doc: any) => doc.data().status === 'present'
+        ).length;
+        totalDays = monthAttendance.length;
+        attendancePercentage =
+          totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+      }
 
       let approvedLeaveDays = 0;
-      monthLeaves.forEach((doc: any) => {
-        approvedLeaveDays += doc.data().totalDays || 1;
-      });
+
+      try {
+        // Get leaves for current month
+        const leavesRef = collection(firestore, 'leaves');
+        const monthLeaves = await getDocs(
+          query(
+            leavesRef,
+            where('userId', '==', userId),
+            where('status', '==', 'approved'),
+            where('startDate', '>=', monthStart),
+            where('startDate', '<=', monthEnd)
+          )
+        );
+
+        monthLeaves.forEach((doc: any) => {
+          approvedLeaveDays += doc.data().totalDays || 1;
+        });
+      } catch (leavesError: any) {
+        console.warn('Leaves query failed (may need index):', leavesError);
+        // Fallback: get all approved leaves for user and filter in memory
+        const leavesRef = collection(firestore, 'leaves');
+        const allLeaves = await getDocs(
+          query(leavesRef, where('userId', '==', userId), where('status', '==', 'approved'))
+        );
+        const monthLeaves = allLeaves.docs.filter((doc: any) => {
+          const startDate = doc.data().startDate;
+          return startDate >= monthStart && startDate <= monthEnd;
+        });
+        monthLeaves.forEach((doc: any) => {
+          approvedLeaveDays += doc.data().totalDays || 1;
+        });
+      }
 
       // Get salary for current month
       const salaryRef = collection(firestore, 'salary');
-      const currentSalary = await getDocs(
-        query(
-          salaryRef,
-          where('userId', '==', userId),
-          where('month', '==', currentMonth),
-          where('year', '==', currentYear)
-        )
-      );
+      let salary = 0;
 
-      const salary = currentSalary.empty
-        ? 0
-        : currentSalary.docs[0].data().netSalary;
+      try {
+        const currentSalary = await getDocs(
+          query(
+            salaryRef,
+            where('userId', '==', userId),
+            where('month', '==', currentMonth),
+            where('year', '==', currentYear)
+          )
+        );
+
+        salary = currentSalary.empty
+          ? 0
+          : currentSalary.docs[0].data().netSalary;
+      } catch (salaryError: any) {
+        console.warn('Salary query failed (may need index):', salaryError);
+        // Fallback: get all salaries for user and filter in memory
+        const allSalaries = await getDocs(
+          query(salaryRef, where('userId', '==', userId))
+        );
+        const currentSalary = allSalaries.docs.find((doc: any) => {
+          const data = doc.data();
+          return data.month === currentMonth && data.year === currentYear;
+        });
+        salary = currentSalary ? currentSalary.data().netSalary : 0;
+      }
 
       return {
         userId,

@@ -22,12 +22,22 @@ export default function LoginPage() {
     try {
       const user = await AuthService.getCurrentUser(uid);
       if (user) {
+        console.log('[Login] User found, setting user and redirecting...');
         setUser(user);
         setLastUid(null);
-        // Small delay to ensure store updates
-        setTimeout(() => {
-          router.push(user.role === 'admin' ? '/dashboard-admin' : '/dashboard-emp');
-        }, 100);
+        
+        // Set auth cookies for middleware
+        const cookieMaxAge = 7 * 24 * 60 * 60; // 7 days
+        document.cookie = `auth-token=${uid}; Max-Age=${cookieMaxAge}; path=/`;
+        document.cookie = `user-role=${user.role}; Max-Age=${cookieMaxAge}; path=/`;
+        document.cookie = `user-id=${user.id}; Max-Age=${cookieMaxAge}; path=/`;
+        
+        // Give store and cookies a moment to update before redirecting
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        const redirectPath = user.role === 'admin' ? '/dashboard-admin' : '/dashboard-emp';
+        console.log('[Login] Redirecting to:', redirectPath);
+        router.push(redirectPath);
       } else {
         setError('User profile not found. Please sign up first or contact an administrator.');
         setLastUid(null);
@@ -35,7 +45,7 @@ export default function LoginPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load user profile';
       setError(errorMessage);
-      setLastUid(uid); // Keep UID for retry
+      setLastUid(uid);
     }
   };
 

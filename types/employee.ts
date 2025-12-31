@@ -15,6 +15,8 @@ export interface Employee {
   city?: string;
   state?: string;
   zipCode?: string;
+  bio?: string;
+  avatar?: string;
   reportingManager?: string;
   status: 'active' | 'inactive' | 'on-leave' | 'terminated';
   createdAt: Date;

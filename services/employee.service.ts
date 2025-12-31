@@ -133,4 +133,35 @@ export class EmployeeService {
       throw error;
     }
   }
+
+  /**
+   * Get employee profile by user ID
+   */
+  static async getEmployeeProfile(userId: string): Promise<Employee> {
+    try {
+      const employees = await FirestoreDB.queryCollection<Employee>(
+        this.COLLECTION,
+        [where('userId', '==', userId)]
+      );
+      if (employees.length === 0) {
+        throw new Error('Employee profile not found');
+      }
+      return employees[0];
+    } catch (error) {
+      console.error('Error getting employee profile:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update employee profile
+   */
+  static async updateEmployeeProfile(employeeId: string, updates: Partial<Employee>): Promise<void> {
+    try {
+      await FirestoreDB.updateDocument(this.COLLECTION, employeeId, updates);
+    } catch (error) {
+      console.error('Error updating employee profile:', error);
+      throw error;
+    }
+  }
 }
