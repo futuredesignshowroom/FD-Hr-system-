@@ -85,6 +85,7 @@ export default function AdminDashboard() {
       const leavesQuery = query(collection(db, 'leaves'));
       const unsubscribeLeaves = onSnapshot(leavesQuery, () => {
         fetchMetrics();
+        fetchActivities(); // Also refetch activities when leaves change
       }, (error) => {
         console.error('Error listening to leaves:', error);
       });
@@ -93,6 +94,7 @@ export default function AdminDashboard() {
       const salariesQuery = query(collection(db, 'salary'));
       const unsubscribeSalaries = onSnapshot(salariesQuery, () => {
         fetchMetrics();
+        fetchActivities(); // Also refetch activities when salaries change
       }, (error) => {
         console.error('Error listening to salaries:', error);
       });
@@ -138,11 +140,30 @@ export default function AdminDashboard() {
 
       fetchActivities();
 
+      // Set up real-time listeners for recent activities
+      // Real-time listener for users (new employees)
+      const usersQuery = query(collection(db, 'users'));
+      const unsubscribeUsers = onSnapshot(usersQuery, () => {
+        fetchActivities();
+      }, (error) => {
+        console.error('Error listening to users:', error);
+      });
+
+      // Real-time listener for messages (if we want to track new messages)
+      const messagesQuery = query(collection(db, 'messages'));
+      const unsubscribeMessages = onSnapshot(messagesQuery, () => {
+        fetchActivities();
+      }, (error) => {
+        console.error('Error listening to messages:', error);
+      });
+
       return () => {
         unsubscribeEmployees();
         unsubscribeAttendance();
         unsubscribeLeaves();
         unsubscribeSalaries();
+        unsubscribeUsers();
+        unsubscribeMessages();
       };
     });
 

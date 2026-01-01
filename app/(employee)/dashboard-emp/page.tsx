@@ -8,6 +8,8 @@ import ProgressBar from '@/components/ui/ProgressBar';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface EmployeePerformance {
   attendance: { presentDays: number; totalDays: number; percentage: number };
@@ -80,6 +82,43 @@ export default function EmployeeDashboard() {
       };
 
       fetchPerformance();
+
+      // Set up real-time listeners for employee's own data
+      if (!db) {
+        setError('Firebase not initialized');
+        setLoading(false);
+        return;
+      }
+
+      // Real-time listener for user's attendance
+      const attendanceQuery = query(collection(db, 'attendance'), where('userId', '==', user.id));
+      const unsubscribeAttendance = onSnapshot(attendanceQuery, () => {
+        fetchPerformance();
+      }, (error) => {
+        console.error('Error listening to attendance:', error);
+      });
+
+      // Real-time listener for user's leaves
+      const leavesQuery = query(collection(db, 'leaves'), where('userId', '==', user.id));
+      const unsubscribeLeaves = onSnapshot(leavesQuery, () => {
+        fetchPerformance();
+      }, (error) => {
+        console.error('Error listening to leaves:', error);
+      });
+
+      // Real-time listener for user's salary
+      const salaryQuery = query(collection(db, 'salary'), where('userId', '==', user.id));
+      const unsubscribeSalary = onSnapshot(salaryQuery, () => {
+        fetchPerformance();
+      }, (error) => {
+        console.error('Error listening to salary:', error);
+      });
+
+      return () => {
+        unsubscribeAttendance();
+        unsubscribeLeaves();
+        unsubscribeSalary();
+      };
     });
 
     return () => unsubscribe();

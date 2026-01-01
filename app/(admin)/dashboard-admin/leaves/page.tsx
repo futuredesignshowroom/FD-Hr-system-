@@ -36,14 +36,17 @@ export default function AdminLeavesPage() {
     // Real-time listener for leave requests
     const leaveQuery = query(collection(db, 'leaves'));
     const unsubscribeLeaves = onSnapshot(leaveQuery, (snapshot) => {
-      const requests = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        startDate: doc.data().startDate?.toDate?.() || new Date(doc.data().startDate),
-        endDate: doc.data().endDate?.toDate?.() || new Date(doc.data().endDate),
-        createdAt: doc.data().createdAt?.toDate?.() || new Date(doc.data().createdAt),
-        updatedAt: doc.data().updatedAt?.toDate?.() || new Date(doc.data().updatedAt),
-      })) as LeaveRequest[];
+      const requests = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          startDate: data.startDate?.toDate ? data.startDate.toDate() : new Date(data.startDate),
+          endDate: data.endDate?.toDate ? data.endDate.toDate() : new Date(data.endDate),
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt),
+        };
+      }) as LeaveRequest[];
       setLeaveRequests(requests);
       setLoading(false);
     }, (error) => {

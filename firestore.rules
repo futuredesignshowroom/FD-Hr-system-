@@ -6,9 +6,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Admin check - expects a custom claim `admin: true` set on the user's token
+    // Admin check - check both custom claim and database role
     function isAdmin() {
-      return isAuth() && request.auth.token.admin == true;
+      return isAuth() && (
+        request.auth.token.admin == true ||
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
     }
 
     // Users collection
