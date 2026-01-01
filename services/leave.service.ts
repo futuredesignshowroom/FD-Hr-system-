@@ -58,7 +58,8 @@ export class LeaveService {
       );
     } catch (error) {
       console.error('Error getting user leave requests:', error);
-      throw error;
+      // Return empty array instead of throwing
+      return [];
     }
   }
 
@@ -70,7 +71,8 @@ export class LeaveService {
       return await FirestoreDB.getCollection<LeaveRequest>(this.COLLECTION);
     } catch (error) {
       console.error('Error getting all leave requests:', error);
-      throw error;
+      // Return empty array instead of throwing
+      return [];
     }
   }
 
@@ -85,7 +87,8 @@ export class LeaveService {
       );
     } catch (error) {
       console.error('Error getting pending leave requests:', error);
-      throw error;
+      // Return empty array instead of throwing
+      return [];
     }
   }
 

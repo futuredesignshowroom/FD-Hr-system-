@@ -170,13 +170,31 @@ export class NotificationService {
   }
 
   /**
-   * Create leave request notification for admin
+   * Get all admin user IDs
    */
+  static async getAdminUsers(): Promise<string[]> {
+    if (!db) {
+      console.error('Firebase not initialized');
+      return [];
+    }
+
+    try {
+      const q = query(
+        collection(db, 'users'),
+        where('role', '==', 'admin')
+      );
+
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => doc.id);
+    } catch (error) {
+      console.error('Error getting admin users:', error);
+      return [];
+    }
+  }
   static async createLeaveRequestNotification(leaveRequest: any, employeeName: string): Promise<void> {
     try {
-      // Get all admin users (for now, we'll create notifications for all users with admin role)
-      // In a real app, you'd have a separate admins collection or role-based system
-      const adminUsers = ['admin']; // This should be dynamic
+      // Get all admin users
+      const adminUsers = await this.getAdminUsers();
 
       const notificationPromises = adminUsers.map(adminId =>
         this.createNotification({

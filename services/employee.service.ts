@@ -48,7 +48,8 @@ export class EmployeeService {
       return await FirestoreDB.getCollection<Employee>(this.COLLECTION);
     } catch (error) {
       console.error('Error getting all employees:', error);
-      throw error;
+      // Return empty array instead of throwing to prevent infinite retries
+      return [];
     }
   }
 
@@ -155,7 +156,7 @@ export class EmployeeService {
       return employees[0];
     } catch (error) {
       console.error('Error getting employee profile:', error);
-      throw error;
+      throw error; // Re-throw to allow profile page to handle creation
     }
   }
 

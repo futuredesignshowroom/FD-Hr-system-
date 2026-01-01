@@ -16,7 +16,8 @@ export class LeaveConfigService {
       return await FirestoreDB.getCollection<LeavePolicy>(this.POLICY_COLLECTION);
     } catch (error) {
       console.error('Error getting leave policies:', error);
-      throw error;
+      // Return empty array instead of throwing
+      return [];
     }
   }
 
@@ -47,7 +48,8 @@ export class LeaveConfigService {
       return balances;
     } catch (error) {
       console.error('Error getting user leave balance:', error);
-      throw error;
+      // Return empty array instead of throwing
+      return [];
     }
   }
 

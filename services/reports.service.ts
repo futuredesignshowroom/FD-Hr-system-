@@ -128,14 +128,14 @@ export class ReportsService {
       };
     } catch (error) {
       console.error('Error getting dashboard metrics:', error);
-      // Return mock data as fallback for now
+      // Return default metrics instead of throwing to prevent infinite retries
       return {
-        totalEmployees: 7,
-        totalDepartments: 3,
-        todayAttendance: 5,
-        pendingLeaves: 2,
-        averageAttendance: 85,
-        totalPayroll: 150000,
+        totalEmployees: 0,
+        totalDepartments: 0,
+        todayAttendance: 0,
+        pendingLeaves: 0,
+        averageAttendance: 0,
+        totalPayroll: 0,
       };
     }
   }
@@ -288,7 +288,8 @@ export class ReportsService {
       );
     } catch (error) {
       console.error('Error getting attendance summary:', error);
-      throw error;
+      // Return empty array instead of throwing
+      return [];
     }
   }
 
@@ -349,10 +350,11 @@ export class ReportsService {
    */
   static async getEmployeePerformance(userId: string): Promise<any> {
     const firestore = ensureDb();
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    const currentYear = today.getFullYear();
+    
     try {
-      const today = new Date();
-      const currentMonth = today.getMonth() + 1;
-      const currentYear = today.getFullYear();
       const monthStart = new Date(currentYear, currentMonth - 1, 1)
         .toISOString()
         .split('T')[0];
@@ -480,7 +482,21 @@ export class ReportsService {
       };
     } catch (error) {
       console.error('Error getting employee performance:', error);
-      throw error;
+      // Return default performance data instead of throwing
+      return {
+        userId,
+        month: currentMonth,
+        year: currentYear,
+        attendance: {
+          presentDays: 0,
+          totalDays: 0,
+          percentage: 0,
+        },
+        leaves: {
+          approvedDays: 0,
+        },
+        salary: 0,
+      };
     }
   }
 

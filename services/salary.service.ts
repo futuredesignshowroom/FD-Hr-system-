@@ -41,7 +41,8 @@ export class SalaryService {
       return salary || null;
     } catch (error) {
       console.error('Error getting salary:', error);
-      throw error;
+      // Return null instead of throwing
+      return null;
     }
   }
 
@@ -55,7 +56,8 @@ export class SalaryService {
       ]);
     } catch (error) {
       console.error('Error getting employee salaries:', error);
-      throw error;
+      // Return empty array instead of throwing
+      return [];
     }
   }
 
@@ -95,7 +97,8 @@ export class SalaryService {
       return config || null;
     } catch (error) {
       console.error('Error getting salary config:', error);
-      throw error;
+      // Return null instead of throwing
+      return null;
     }
   }
 

@@ -83,7 +83,13 @@ export default function EmployeeLeavesPage() {
     }
 
     // Check leave balance
-    const balance = leaveBalances.find(b => b.leaveType === formData.leaveType);
+    const defaultBalances = [
+      { leaveType: 'casual', remaining: 12, used: 0, totalAllowed: 12 },
+      { leaveType: 'sick', remaining: 12, used: 0, totalAllowed: 12 },
+      { leaveType: 'earned', remaining: 30, used: 0, totalAllowed: 30 },
+    ];
+    const allBalances = leaveBalances.length > 0 ? leaveBalances : defaultBalances;
+    const balance = allBalances.find(b => b.leaveType === formData.leaveType);
     const requestedDays = calculateDays(start, end);
 
     if (balance && balance.remaining < requestedDays) {
@@ -151,6 +157,15 @@ export default function EmployeeLeavesPage() {
   };
 
   const getLeaveTypeOptions = () => {
+    if (leaveBalances.length === 0) {
+      // Provide default leave types if no balances are configured
+      return [
+        { value: 'casual', label: 'Casual Leave (12 days remaining)', disabled: false },
+        { value: 'sick', label: 'Sick Leave (12 days remaining)', disabled: false },
+        { value: 'earned', label: 'Earned Leave (30 days remaining)', disabled: false },
+      ];
+    }
+    
     return leaveBalances.map(balance => ({
       value: balance.leaveType,
       label: `${balance.leaveType.charAt(0).toUpperCase() + balance.leaveType.slice(1)} Leave (${balance.remaining} days remaining)`,
@@ -168,7 +183,11 @@ export default function EmployeeLeavesPage() {
 
       {/* Leave Balance Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {leaveBalances.map((balance) => (
+        {(leaveBalances.length > 0 ? leaveBalances : [
+          { leaveType: 'casual', remaining: 12, used: 0, totalAllowed: 12 },
+          { leaveType: 'sick', remaining: 12, used: 0, totalAllowed: 12 },
+          { leaveType: 'earned', remaining: 30, used: 0, totalAllowed: 30 },
+        ]).map((balance) => (
           <div key={balance.leaveType} className="bg-white rounded-lg shadow p-4">
             <h3 className="text-gray-500 text-sm font-semibold mb-2 capitalize">
               {balance.leaveType}
@@ -212,11 +231,11 @@ export default function EmployeeLeavesPage() {
       </div>
 
       {/* Apply for Leave Form */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow p-4 md:p-6">
         <h2 className="text-xl font-bold mb-4">Apply for Leave</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           {formErrors.balance && (
-            <div className="p-3 bg-red-50 text-red-700 rounded mb-2">
+            <div className="p-3 bg-red-50 text-red-700 rounded mb-2 text-sm">
               {formErrors.balance}
             </div>
           )}
@@ -226,7 +245,7 @@ export default function EmployeeLeavesPage() {
               <select
                 value={formData.leaveType}
                 onChange={(e) => handleInputChange('leaveType', e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 required
               >
                 {getLeaveTypeOptions().map((option) => (
@@ -247,7 +266,7 @@ export default function EmployeeLeavesPage() {
                 type="date"
                 value={formData.startDate}
                 onChange={(e) => handleInputChange('startDate', e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 required
                 min={new Date().toISOString().split('T')[0]}
               />
@@ -259,7 +278,7 @@ export default function EmployeeLeavesPage() {
                 type="date"
                 value={formData.endDate}
                 onChange={(e) => handleInputChange('endDate', e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 required
                 min={formData.startDate || new Date().toISOString().split('T')[0]}
               />
@@ -280,8 +299,8 @@ export default function EmployeeLeavesPage() {
             <textarea
               value={formData.reason}
               onChange={(e) => handleInputChange('reason', e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={4}
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              rows={3}
               placeholder="Please provide a detailed reason for your leave request..."
               required
             />
@@ -299,47 +318,48 @@ export default function EmployeeLeavesPage() {
       </div>
 
       {/* Leave History */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow p-4 md:p-6">
         <h2 className="text-xl font-bold mb-4">Leave History</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-100">
               <tr>
-                <th className="px-4 py-2 text-left">Type</th>
-                <th className="px-4 py-2 text-left">Duration</th>
-                <th className="px-4 py-2 text-left">Days</th>
-                <th className="px-4 py-2 text-left">Status</th>
-                <th className="px-4 py-2 text-left">Applied Date</th>
-                <th className="px-4 py-2 text-left">Actions</th>
+                <th className="px-2 md:px-4 py-2 text-left">Type</th>
+                <th className="px-2 md:px-4 py-2 text-left hidden md:table-cell">Duration</th>
+                <th className="px-2 md:px-4 py-2 text-left">Days</th>
+                <th className="px-2 md:px-4 py-2 text-left">Status</th>
+                <th className="px-2 md:px-4 py-2 text-left hidden lg:table-cell">Applied Date</th>
+                <th className="px-2 md:px-4 py-2 text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
               {leaveRequests.map((request) => (
                 <tr key={request.id} className="border-b hover:bg-gray-50">
-                  <td className="px-4 py-2 capitalize font-medium">{request.leaveType}</td>
-                  <td className="px-4 py-2">
-                    <div className="text-sm">
-                      <div>{request.startDate.toDateString()}</div>
+                  <td className="px-2 md:px-4 py-2 capitalize font-medium">{request.leaveType}</td>
+                  <td className="px-2 md:px-4 py-2 hidden md:table-cell">
+                    <div className="text-xs md:text-sm">
+                      <div>{request.startDate.toLocaleDateString()}</div>
                       <div className="text-gray-500">to</div>
-                      <div>{request.endDate.toDateString()}</div>
+                      <div>{request.endDate.toLocaleDateString()}</div>
                     </div>
                   </td>
-                  <td className="px-4 py-2 font-medium">
+                  <td className="px-2 md:px-4 py-2 font-medium">
                     {calculateDays(request.startDate, request.endDate)}
                   </td>
-                  <td className="px-4 py-2">
+                  <td className="px-2 md:px-4 py-2">
                     {getStatusBadge(request.status)}
                   </td>
-                  <td className="px-4 py-2">
-                    {request.createdAt.toDateString()}
+                  <td className="px-2 md:px-4 py-2 hidden lg:table-cell">
+                    {request.createdAt.toLocaleDateString()}
                   </td>
-                  <td className="px-4 py-2">
+                  <td className="px-2 md:px-4 py-2">
                     <Button
                       size="sm"
                       variant="secondary"
                       onClick={() => setSelectedRequest(request)}
+                      className="text-xs"
                     >
-                      View Details
+                      View
                     </Button>
                   </td>
                 </tr>

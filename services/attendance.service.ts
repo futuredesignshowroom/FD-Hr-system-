@@ -182,7 +182,8 @@ export class AttendanceService {
       );
     } catch (error) {
       console.error('Error getting user attendance:', error);
-      throw error;
+      // Return empty array instead of throwing
+      return [];
     }
   }
 
@@ -194,7 +195,8 @@ export class AttendanceService {
       return await FirestoreDB.getCollection<Attendance>(this.COLLECTION);
     } catch (error) {
       console.error('Error getting all attendance:', error);
-      throw error;
+      // Return empty array instead of throwing
+      return [];
     }
   }
 

@@ -196,47 +196,47 @@ export default function AdminLeavesPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-100">
               <tr>
-                <th className="px-6 py-3 text-left font-semibold">Employee</th>
-                <th className="px-6 py-3 text-left font-semibold">Type</th>
-                <th className="px-6 py-3 text-left font-semibold">Duration</th>
-                <th className="px-6 py-3 text-left font-semibold">Days</th>
-                <th className="px-6 py-3 text-left font-semibold">Status</th>
-                <th className="px-6 py-3 text-left font-semibold">Applied Date</th>
-                <th className="px-6 py-3 text-left font-semibold">Actions</th>
+                <th className="px-3 md:px-6 py-3 text-left font-semibold">Employee</th>
+                <th className="px-3 md:px-6 py-3 text-left font-semibold">Type</th>
+                <th className="px-3 md:px-6 py-3 text-left font-semibold hidden md:table-cell">Duration</th>
+                <th className="px-3 md:px-6 py-3 text-left font-semibold">Days</th>
+                <th className="px-3 md:px-6 py-3 text-left font-semibold">Status</th>
+                <th className="px-3 md:px-6 py-3 text-left font-semibold hidden lg:table-cell">Applied Date</th>
+                <th className="px-3 md:px-6 py-3 text-left font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredRequests.map((request) => (
                 <tr key={request.id} className="border-b hover:bg-gray-50">
-                  <td className="px-6 py-4">
+                  <td className="px-3 md:px-6 py-4">
                     <div>
-                      <div className="font-medium">{getEmployeeName(request.userId)}</div>
-                      <div className="text-sm text-gray-500">
+                      <div className="font-medium text-sm md:text-base">{getEmployeeName(request.userId)}</div>
+                      <div className="text-xs md:text-sm text-gray-500">
                         {getEmployeeDetails(request.userId)?.position}
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="capitalize font-medium">{request.leaveType}</span>
+                  <td className="px-3 md:px-6 py-4">
+                    <span className="capitalize font-medium text-sm md:text-base">{request.leaveType}</span>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm">
-                      <div>{request.startDate.toDateString()}</div>
+                  <td className="px-3 md:px-6 py-4 hidden md:table-cell">
+                    <div className="text-xs md:text-sm">
+                      <div>{request.startDate.toLocaleDateString()}</div>
                       <div className="text-gray-500">to</div>
-                      <div>{request.endDate.toDateString()}</div>
+                      <div>{request.endDate.toLocaleDateString()}</div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 md:px-6 py-4">
                     <span className="font-medium">{calculateDays(request.startDate, request.endDate)}</span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 md:px-6 py-4">
                     {getStatusBadge(request.status)}
                   </td>
-                  <td className="px-6 py-4">
-                    {request.createdAt.toDateString()}
+                  <td className="px-3 md:px-6 py-4 hidden lg:table-cell">
+                    {request.createdAt.toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-2">
+                  <td className="px-3 md:px-6 py-4">
+                    <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
                       {request.status === 'pending' && (
                         <>
                           <Button
@@ -244,14 +244,16 @@ export default function AdminLeavesPage() {
                             variant="primary"
                             onClick={() => handleApprove(request.id)}
                             disabled={processing === request.id}
+                            className="text-xs"
                           >
-                            {processing === request.id ? 'Processing...' : 'Approve'}
+                            {processing === request.id ? '...' : 'Approve'}
                           </Button>
                           <Button
                             size="sm"
                             variant="danger"
                             onClick={() => openRejectModal(request)}
                             disabled={processing === request.id}
+                            className="text-xs"
                           >
                             Reject
                           </Button>
@@ -261,8 +263,9 @@ export default function AdminLeavesPage() {
                         size="sm"
                         variant="secondary"
                         onClick={() => setSelectedRequest(request)}
+                        className="text-xs"
                       >
-                        View Details
+                        View
                       </Button>
                     </div>
                   </td>

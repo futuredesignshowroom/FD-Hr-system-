@@ -35,7 +35,8 @@ export class MessageService {
       return [...sentMessages, ...receivedMessages];
     } catch (error) {
       console.error('Error getting user messages:', error);
-      throw error;
+      // Return empty array instead of throwing
+      return [];
     }
   }
 
