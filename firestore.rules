@@ -1,133 +1,85 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Simple authentication check
+    // Basic auth check
     function isAuth() {
       return request.auth != null;
     }
 
-    // Check if user is admin
+    // Admin check - expects a custom claim `admin: true` set on the user's token
     function isAdmin() {
-      return isAuth(); // Temporarily allow all authenticated users admin access for testing
+      return isAuth() && request.auth.token.admin == true;
     }
 
-    // Users collection - Admins can read all, users can read/update their own
+    // Users collection
     match /users/{userId} {
-      // Users can read their own document
-      allow read: if isAuth() && request.auth.uid == userId;
-      // Admins can read all users
-      allow read: if isAdmin();
-      // Users can create their own profile
+      allow read, update: if isAuth() && (request.auth.uid == userId || isAdmin());
       allow create: if isAuth() && request.resource.data.id == request.auth.uid;
-      // Users can update their own profile
-      allow update: if isAuth() && request.auth.uid == userId;
-      // Admins can update any user
-      allow update: if isAdmin();
-      // No one can delete
-      allow delete: if false;
+      allow delete: if isAdmin();
     }
 
-    // Attendance collection - Users can read/write their own; admins can read/write all
-    match /attendance/{document=**} {
-      allow read: if isAuth() && (
-        resource.data.userId == request.auth.uid ||
-        isAdmin()
-      );
-      // Allow creating attendance documents where the record's userId matches the signed-in user
+    // Employees collection (each doc should represent an employee, id often equals userId)
+    match /employees/{employeeId} {
+      allow read: if isAuth() && (request.auth.uid == resource.data.userId || isAdmin());
       allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
-      // Allow users to update their own attendance (for check in/out)
-      allow update: if isAuth() && resource.data.userId == request.auth.uid;
-      // Allow admins full write access (update/delete)
-      allow update, delete: if isAdmin();
+      allow update: if isAuth() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow delete: if isAdmin();
     }
 
-    // Leaves collection - Users can read/write their own leave requests; admins can read/write all
-    match /leaves/{document=**} {
-      allow read: if isAuth() && (
-        resource.data.userId == request.auth.uid ||
-        isAdmin()
-      );
-      // Allow users to create their own leave requests
+    // Attendance records
+    match /attendance/{attendanceId} {
       allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
-      // Allow users to update their own leave requests
-      allow update: if isAuth() && resource.data.userId == request.auth.uid;
-      // Admins can create/modify/approve/reject
-      allow update, delete: if isAuth();
+      allow read: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
     }
 
-    // Salary collection - Users can read their own; admins can read/write all
-    match /salary/{document=**} {
-      allow read: if isAuth() && (
-        resource.data.userId == request.auth.uid ||
-        isAdmin()
-      );
-      allow write: if isAdmin();
-    }
-
-    // Employees collection - Users can read/write their own; admins can read/write all
-    match /employees/{document=**} {
-      // Allow reading if owner or admin
-      allow read: if isAuth() && (
-        resource.data.userId == request.auth.uid ||
-        isAdmin()
-      );
-      // Allow users to create their own employee document
+    // Leaves collection
+    match /leaves/{leaveId} {
       allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
-      // Allow users to update their own employee document (profile)
-      allow update: if isAuth() && resource.data.userId == request.auth.uid;
-      // Allow admins to write/update/delete
-      allow update, delete: if isAdmin();
+      allow read: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
     }
 
-    // Leave Config collection - Admins can read/write
-    match /leaveConfig/{document=**} {
+    // Leave config - admins only
+    match /leaveConfig/{doc=**} {
       allow read, write: if isAdmin();
     }
 
-    // Leave Balance collection - Admins can read/write
-    match /leaveBalance/{document=**} {
-      allow read, write: if isAuth();
+    // Leave balances - allow users to read/write their own balance; admins can access all
+    match /leaveBalance/{userId} {
+      allow read, write: if isAuth() && (request.auth.uid == userId || isAdmin());
     }
 
-    // Salary Config collection - Admins can read/write
-    match /salaryConfig/{document=**} {
+    // Salary collection - users can read their own salary records; only admins can write
+    match /salary/{salaryId} {
+      allow read: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Salary config - admins only
+    match /salaryConfig/{doc=**} {
       allow read, write: if isAdmin();
     }
 
-    // Messages collection
-    match /messages/{document=**} {
-      // Users can read their own messages
-      allow read: if isAuth() && (
-        resource.data.senderId == request.auth.uid ||
-        resource.data.recipientId == request.auth.uid
-      );
-      // Admins can read all messages
-      allow read: if isAdmin();
-      // Users can send messages
+    // Messages - participants and admins can read; senders can create
+    match /messages/{messageId} {
+      allow read: if isAuth() && (resource.data.senderId == request.auth.uid || resource.data.recipientId == request.auth.uid || isAdmin());
       allow create: if isAuth() && request.resource.data.senderId == request.auth.uid;
-      // Admins can create messages
-      allow create: if isAdmin();
-      allow update, delete: if false;
-    }
-
-    // Notifications collection
-    match /notifications/{document=**} {
-      // Users can read their own notifications
-      allow read: if isAuth() && resource.data.userId == request.auth.uid;
-      // Admins can read all notifications
-      allow read: if isAdmin();
-      // Users can create notifications for themselves
-      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
-      // Admins can create notifications
-      allow create: if isAdmin();
-      // Users can update their own notifications (mark as read)
-      allow update: if isAuth() && resource.data.userId == request.auth.uid;
-      // Admins can update any notification
       allow update: if isAdmin();
-      allow delete: if false;
+      allow delete: if isAdmin();
     }
 
-    // Deny all other access
+    // Notifications - users can read their own and mark as read; admins can manage
+    match /notifications/{notificationId} {
+      allow read: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuth() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Deny everything else
     match /{document=**} {
       allow read, write: if false;
     }

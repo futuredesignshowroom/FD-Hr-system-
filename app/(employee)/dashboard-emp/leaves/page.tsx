@@ -9,6 +9,7 @@ import Loader from '@/components/ui/Loader';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import { useToast } from '@/components/ui/Toast';
 
 export default function EmployeeLeavesPage() {
   const { user } = useAuthStore();
@@ -16,7 +17,9 @@ export default function EmployeeLeavesPage() {
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<{ startDate?: string; endDate?: string; reason?: string; balance?: string }>({});
   const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
+  const toast = useToast();
   const [formData, setFormData] = useState({
     leaveType: 'casual' as LeaveType,
     startDate: '',
@@ -48,15 +51,12 @@ export default function EmployeeLeavesPage() {
     }
   }, [user, loadData]);
 
-  useEffect(() => {
-    if (user) {
-      loadData();
-    }
-  }, [user, loadData]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+
+    // Clear previous errors
+    setFormErrors({});
 
     // Validation
     const start = new Date(formData.startDate);
@@ -64,19 +64,22 @@ export default function EmployeeLeavesPage() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    if (start < today) {
-      alert('Start date cannot be in the past.');
-      return;
+    const errors: typeof formErrors = {};
+
+    if (!formData.startDate) {
+      errors.startDate = 'Please select a start date.';
+    } else if (start < today) {
+      errors.startDate = 'Start date cannot be in the past.';
     }
 
-    if (end < start) {
-      alert('End date must be after start date.');
-      return;
+    if (!formData.endDate) {
+      errors.endDate = 'Please select an end date.';
+    } else if (end < start) {
+      errors.endDate = 'End date must be the same or after the start date.';
     }
 
     if (!formData.reason.trim()) {
-      alert('Please provide a reason for the leave.');
-      return;
+      errors.reason = 'Please provide a reason for the leave.';
     }
 
     // Check leave balance
@@ -84,7 +87,11 @@ export default function EmployeeLeavesPage() {
     const requestedDays = calculateDays(start, end);
 
     if (balance && balance.remaining < requestedDays) {
-      alert(`Insufficient leave balance. You have ${balance.remaining} days remaining for ${formData.leaveType} leave.`);
+      errors.balance = `Insufficient leave balance. You have ${balance.remaining} day(s) remaining for ${formData.leaveType} leave.`;
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
 
@@ -108,11 +115,13 @@ export default function EmployeeLeavesPage() {
         endDate: '',
         reason: '',
       });
-      await loadData(); // Refresh the list
-      alert('Leave request submitted successfully!');
+        setFormErrors({});
+        await loadData(); // Refresh the list
+        // show global toast
+        toast.show('Leave request submitted successfully', { type: 'success', duration: 4000 });
     } catch (error) {
       console.error('Error submitting leave request:', error);
-      alert('Failed to submit leave request. Please try again.');
+      setFormErrors({ reason: 'Failed to submit leave request. Please try again.' });
     } finally {
       setSubmitting(false);
     }
@@ -158,7 +167,7 @@ export default function EmployeeLeavesPage() {
       </div>
 
       {/* Leave Balance Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {leaveBalances.map((balance) => (
           <div key={balance.leaveType} className="bg-white rounded-lg shadow p-4">
             <h3 className="text-gray-500 text-sm font-semibold mb-2 capitalize">
@@ -175,7 +184,7 @@ export default function EmployeeLeavesPage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-gray-500 text-sm font-semibold mb-2">Total Balance</h3>
           <p className="text-2xl font-bold">
@@ -206,6 +215,11 @@ export default function EmployeeLeavesPage() {
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-bold mb-4">Apply for Leave</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {formErrors.balance && (
+            <div className="p-3 bg-red-50 text-red-700 rounded mb-2">
+              {formErrors.balance}
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Leave Type</label>
@@ -237,6 +251,7 @@ export default function EmployeeLeavesPage() {
                 required
                 min={new Date().toISOString().split('T')[0]}
               />
+              {formErrors.startDate && <p className="text-sm text-red-600 mt-1">{formErrors.startDate}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">To Date</label>
@@ -248,6 +263,7 @@ export default function EmployeeLeavesPage() {
                 required
                 min={formData.startDate || new Date().toISOString().split('T')[0]}
               />
+              {formErrors.endDate && <p className="text-sm text-red-600 mt-1">{formErrors.endDate}</p>}
             </div>
           </div>
 
@@ -269,6 +285,7 @@ export default function EmployeeLeavesPage() {
               placeholder="Please provide a detailed reason for your leave request..."
               required
             />
+            {formErrors.reason && <p className="text-sm text-red-600 mt-1">{formErrors.reason}</p>}
           </div>
 
           <Button

@@ -3,6 +3,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
+import { ToastProvider } from '@/components/ui/Toast';
 
 export const metadata: Metadata = {
   title: 'HRMS System',
@@ -17,8 +18,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ConnectionStatus />
-        {children}
+        <ToastProvider>
+          <ConnectionStatus />
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

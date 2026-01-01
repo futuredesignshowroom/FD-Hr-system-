@@ -51,8 +51,10 @@ export default function AdminDashboard() {
         try {
           const data = await ReportsService.getDashboardMetrics();
           setMetrics(data);
+          setLoading(false);
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to load metrics');
+          setLoading(false);
         }
       };
 
