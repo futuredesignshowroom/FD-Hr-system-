@@ -7,8 +7,8 @@ import { Attendance } from '@/types/attendance';
 import { safeGetTime } from '@/utils/date';
 import { getLocationLink } from '@/utils/location';
 import Loader from '@/components/ui/Loader';
-import { FirestoreDB } from '@/lib/firestore';
-import { where } from 'firebase/firestore';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function EmployeeAttendancePage() {
   const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([]);
@@ -21,25 +21,93 @@ export default function EmployeeAttendancePage() {
   useEffect(() => {
     if (!user) return;
 
-    setLoading(true);
-    const unsubscribe = FirestoreDB.subscribeCollection<Attendance>(
-      'attendance',
-      [where('userId', '==', user.id)],
-      (records) => {
+    let unsubscribe: (() => void) | null = null;
+    let retryTimeout: NodeJS.Timeout | null = null;
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    const loadAttendanceData = async () => {
+      try {
+        setLoading(true);
+        setError('');
+
+        // Try to get attendance records using service method as fallback
+        const records = await AttendanceService.getUserAttendance(user.id);
+
         // Sort by date descending
         records.sort((a, b) => safeGetTime(b.date) - safeGetTime(a.date));
         setAttendanceRecords(records);
         setLoading(false);
-        setError('');
-      },
-      (error) => {
-        console.error('Error subscribing to attendance:', error);
+      } catch (fallbackError) {
+        console.error('Fallback fetch failed:', fallbackError);
         setError('Failed to load attendance records');
         setLoading(false);
       }
-    );
+    };
 
-    return () => unsubscribe();
+    const setupSubscription = () => {
+      if (!db) {
+        console.error('Firebase not initialized');
+        loadAttendanceData();
+        return;
+      }
+
+      try {
+        const q = query(
+          collection(db, 'attendance'),
+          where('userId', '==', user.id)
+        );
+
+        unsubscribe = onSnapshot(
+          q,
+          (querySnapshot) => {
+            const records = querySnapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            })) as Attendance[];
+
+            // Sort by date descending
+            records.sort((a, b) => safeGetTime(b.date) - safeGetTime(a.date));
+            setAttendanceRecords(records);
+            setLoading(false);
+            setError('');
+            retryCount = 0; // Reset retry count on success
+          },
+          (error) => {
+            console.error('Error subscribing to attendance:', error);
+
+            // If subscription fails and we haven't exceeded max retries, try again
+            if (retryCount < maxRetries) {
+              retryCount++;
+              console.log(`Retrying subscription (${retryCount}/${maxRetries})...`);
+              retryTimeout = setTimeout(() => {
+                setupSubscription();
+              }, 2000 * retryCount); // Exponential backoff
+              return;
+            }
+
+            // If subscription keeps failing, fall back to one-time fetch
+            console.log('Subscription failed, falling back to one-time fetch...');
+            loadAttendanceData();
+          }
+        );
+      } catch (setupError) {
+        console.error('Error setting up subscription:', setupError);
+        loadAttendanceData();
+      }
+    };
+
+    // Start with subscription attempt
+    setupSubscription();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+    };
   }, [user]);
 
   const handleCheckIn = async () => {
@@ -121,7 +189,13 @@ export default function EmployeeAttendancePage() {
   if (error) {
     return (
       <div className="text-center py-8">
-        <p className="text-red-600">{error}</p>
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Retry Loading
+        </button>
       </div>
     );
   }

@@ -4,6 +4,7 @@ import { where } from 'firebase/firestore';
 import { FirestoreDB } from '@/lib/firestore';
 import { SalaryCalculator } from '@/lib/calculations';
 import { Salary, SalaryConfig, Allowance, Deduction } from '@/types/salary';
+import { NotificationService } from './notification.service';
 
 export class SalaryService {
   private static readonly COLLECTION = 'salary';
@@ -78,7 +79,25 @@ export class SalaryService {
    */
   static async setSalaryConfig(config: SalaryConfig): Promise<void> {
     try {
-      await FirestoreDB.addDocument(this.CONFIG_COLLECTION, config);
+      // Store config under doc id = userId so updates overwrite instead of creating duplicates
+      await FirestoreDB.addDocument(this.CONFIG_COLLECTION, config, config.userId);
+
+      // After updating config, upsert current month's salary and notify the user
+      try {
+        const now = new Date();
+        await this.calculateAndUpsertCurrentMonthSalary(config.userId, now.getMonth() + 1, now.getFullYear(), config);
+
+        await NotificationService.createNotification({
+          userId: config.userId,
+          title: 'Salary Rules Updated',
+          message: 'Your salary rules were updated by admin. Your current month salary has been recalculated.',
+          type: 'system',
+          isRead: false,
+          data: { type: 'salary_rules_updated' },
+        });
+      } catch (notifyErr) {
+        console.error('Error recalculating salary or notifying user after config update:', notifyErr);
+      }
     } catch (error) {
       console.error('Error setting salary config:', error);
       throw error;
@@ -90,6 +109,11 @@ export class SalaryService {
    */
   static async getSalaryConfig(userId: string): Promise<SalaryConfig | null> {
     try {
+      // Try direct document fetch (we store config with docId = userId)
+      const doc = await FirestoreDB.getDocument<SalaryConfig>(this.CONFIG_COLLECTION, userId);
+      if (doc) return doc;
+
+      // Fallback to query if doc isn't present
       const [config] = await FirestoreDB.queryCollection<SalaryConfig>(
         this.CONFIG_COLLECTION,
         [where('userId', '==', userId)]
@@ -214,4 +238,68 @@ export class SalaryService {
       return () => {};
     }
   }
+
+  /**
+   * Subscribe to salary config for a specific user (real-time)
+   */
+  static subscribeSalaryConfig(
+    userId: string,
+    callback: (config: SalaryConfig | null) => void,
+    onError?: (error: any) => void
+  ): () => void {
+    try {
+      // Use document subscription since config docId == userId
+      return FirestoreDB.subscribeDocument<SalaryConfig>(this.CONFIG_COLLECTION, userId, (doc) => {
+        callback(doc || null);
+      }, onError);
+    } catch (error) {
+      console.error('Error subscribing to salary config:', error);
+      return () => {};
+    }
+  }
+
+  /**
+   * Calculate salary for current month and update or create the salary record
+   */
+  static async calculateAndUpsertCurrentMonthSalary(
+    userId: string,
+    month: number,
+    year: number,
+    config: SalaryConfig
+  ): Promise<void> {
+    try {
+      const existing = await this.getSalary(userId, month, year);
+      const calculations = SalaryCalculator.calculateFullSalary(
+        config.baseSalary,
+        config.allowances,
+        []
+      );
+
+      if (existing) {
+        await this.updateSalary(existing.id, {
+          baseSalary: config.baseSalary,
+          allowances: config.allowances,
+          deductions: existing.deductions || [],
+          perDaySalary: calculations.perDaySalary,
+          totalAllowances: calculations.totalAllowances,
+          totalDeductions: calculations.totalDeductions,
+          netSalary: calculations.netSalary,
+          updatedAt: new Date(),
+        });
+      } else {
+        await this.calculateAndCreateSalary(
+          userId,
+          month,
+          year,
+          config.baseSalary,
+          config.allowances,
+          []
+        );
+      }
+    } catch (error) {
+      console.error('Error upserting current month salary:', error);
+      throw error;
+    }
+  }
 }
+

@@ -10,6 +10,7 @@ import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import NotificationBell from '@/components/ui/NotificationBell';
 
 export default function AdminDashboard() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
@@ -176,8 +177,13 @@ export default function AdminDashboard() {
     <div className="space-y-6 lg:space-y-8 p-4 lg:p-6">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 lg:p-8 text-white">
-        <h1 className="text-2xl lg:text-4xl font-bold mb-2">Admin Dashboard</h1>
-        <p className="text-blue-100 text-sm lg:text-base">Welcome back! Here&apos;s what&apos;s happening today.</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl lg:text-4xl font-bold mb-2">Admin Dashboard</h1>
+            <p className="text-blue-100 text-sm lg:text-base">Welcome back! Here&apos;s what&apos;s happening today.</p>
+          </div>
+          <NotificationBell className="text-white" />
+        </div>
       </div>
 
       {error && (

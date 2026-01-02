@@ -4,6 +4,7 @@ import { where, collection, query, orderBy, limit, onSnapshot } from 'firebase/f
 import { db } from '@/lib/firebase';
 import { FirestoreDB } from '@/lib/firestore';
 import { Message } from '@/types/message';
+import { NotificationService } from './notification.service';
 
 export class MessageService {
   private static readonly MESSAGES_COLLECTION = 'messages';
@@ -14,6 +15,27 @@ export class MessageService {
   static async sendMessage(message: Message): Promise<void> {
     try {
       await FirestoreDB.addDocument(this.MESSAGES_COLLECTION, message);
+
+      // Create notification for recipient
+      try {
+        await NotificationService.createNotification({
+          userId: message.recipientId,
+          title: 'New Message',
+          message: `You have a new message from ${message.senderName}`,
+          type: 'system',
+          isRead: false,
+          data: {
+            type: 'new_message',
+            senderId: message.senderId,
+            senderName: message.senderName,
+            messageId: message.id,
+            content: message.content.substring(0, 100) + (message.content.length > 100 ? '...' : ''),
+          },
+        });
+      } catch (notificationError) {
+        console.error('Error creating message notification:', notificationError);
+        // Don't fail message sending if notification fails
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       throw error;
