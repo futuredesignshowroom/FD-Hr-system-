@@ -5,6 +5,7 @@ import { AttendanceService } from '@/services/attendance.service';
 import { EmployeeService } from '@/services/employee.service';
 import { Attendance, AttendanceStatus } from '@/types/attendance';
 import { safeDateToISOString, safeGetTime } from '@/utils/date';
+import { getLocationLink } from '@/utils/location';
 
 import Loader from '@/components/ui/Loader';
 import { collection, onSnapshot, query } from 'firebase/firestore';
@@ -242,6 +243,8 @@ export default function AdminAttendancePage() {
               <th className="px-6 py-3 text-left font-semibold">Employee</th>
               <th className="px-6 py-3 text-left font-semibold">Check In</th>
               <th className="px-6 py-3 text-left font-semibold">Check Out</th>
+              <th className="px-6 py-3 text-left font-semibold">Check In Location</th>
+              <th className="px-6 py-3 text-left font-semibold">Check Out Location</th>
               <th className="px-6 py-3 text-left font-semibold">Status</th>
               <th className="px-6 py-3 text-left font-semibold">Actions</th>
             </tr>
@@ -257,6 +260,34 @@ export default function AdminAttendancePage() {
                 </td>
                 <td className="px-6 py-4">{formatTime(record.checkInTime)}</td>
                 <td className="px-6 py-4">{formatTime(record.checkOutTime)}</td>
+                <td className="px-6 py-4">
+                  {record.checkInLocation ? (
+                    <a
+                      href={getLocationLink(record.checkInLocation)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline text-xs"
+                    >
+                      View Location
+                    </a>
+                  ) : (
+                    <span className="text-gray-400 text-xs">No location</span>
+                  )}
+                </td>
+                <td className="px-6 py-4">
+                  {record.checkOutLocation ? (
+                    <a
+                      href={getLocationLink(record.checkOutLocation)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline text-xs"
+                    >
+                      View Location
+                    </a>
+                  ) : (
+                    <span className="text-gray-400 text-xs">No location</span>
+                  )}
+                </td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 rounded text-xs ${getStatusColor(record.status)}`}>
                     {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
@@ -280,7 +311,7 @@ export default function AdminAttendancePage() {
             ))}
             {attendanceRecords.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                   No attendance records found for {new Date(selectedDate).toLocaleDateString()}.
                 </td>
               </tr>

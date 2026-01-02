@@ -6,6 +6,7 @@ import { AttendanceCalculator } from '@/lib/calculations';
 import { NotificationService } from './notification.service';
 import { EmployeeService } from './employee.service';
 import { Attendance, AttendanceRecord, AttendanceStatus } from '@/types/attendance';
+import { getCurrentLocation, LocationData } from '@/utils/location';
 
 export class AttendanceService {
   private static readonly COLLECTION = 'attendance';
@@ -16,11 +17,22 @@ export class AttendanceService {
   static async checkIn(userId: string): Promise<Attendance> {
     try {
       const now = new Date();
+
+      // Get current location
+      let location: LocationData | undefined;
+      try {
+        location = await getCurrentLocation();
+      } catch (locationError) {
+        console.warn('Could not get location for check-in:', locationError);
+        // Continue without location if permission denied
+      }
+
       const attendance: Attendance = {
         id: '',
         userId,
         date: now,
         checkInTime: now,
+        checkInLocation: location,
         status: 'present',
         createdAt: now,
         updatedAt: now,
@@ -61,9 +73,21 @@ export class AttendanceService {
         throw new Error('Attendance record not found');
       }
 
+      const now = new Date();
+
+      // Get current location
+      let location: LocationData | undefined;
+      try {
+        location = await getCurrentLocation();
+      } catch (locationError) {
+        console.warn('Could not get location for check-out:', locationError);
+        // Continue without location if permission denied
+      }
+
       await FirestoreDB.updateDocument(this.COLLECTION, attendanceId, {
-        checkOutTime: new Date(),
-        updatedAt: new Date(),
+        checkOutTime: now,
+        checkOutLocation: location,
+        updatedAt: now,
       });
 
       // Create notification for admin

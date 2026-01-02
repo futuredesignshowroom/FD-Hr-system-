@@ -5,6 +5,7 @@ import { AttendanceService } from '@/services/attendance.service';
 import { useAuthStore } from '@/store/auth.store';
 import { Attendance } from '@/types/attendance';
 import { safeGetTime } from '@/utils/date';
+import { getLocationLink } from '@/utils/location';
 import Loader from '@/components/ui/Loader';
 import { FirestoreDB } from '@/lib/firestore';
 import { where } from 'firebase/firestore';
@@ -47,9 +48,14 @@ export default function EmployeeAttendancePage() {
     try {
       setCheckingIn(true);
       await AttendanceService.checkIn(user.id);
-    } catch (err) {
+      alert('Successfully checked in!');
+    } catch (err: any) {
       console.error('Error checking in:', err);
-      alert('Failed to check in. Please try again.');
+      if (err.message?.includes('Location')) {
+        alert('Check-in successful, but location could not be captured. Please enable location permissions for better tracking.');
+      } else {
+        alert('Failed to check in. Please try again.');
+      }
     } finally {
       setCheckingIn(false);
     }
@@ -68,12 +74,17 @@ export default function EmployeeAttendancePage() {
 
       if (todayRecord && todayRecord.id) {
         await AttendanceService.checkOut(todayRecord.id);
+        alert('Successfully checked out!');
       } else {
         alert('No check-in record found for today.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error checking out:', err);
-      alert('Failed to check out. Please try again.');
+      if (err.message?.includes('Location')) {
+        alert('Check-out successful, but location could not be captured. Please enable location permissions for better tracking.');
+      } else {
+        alert('Failed to check out. Please try again.');
+      }
     } finally {
       setCheckingOut(false);
     }
@@ -145,6 +156,8 @@ export default function EmployeeAttendancePage() {
               <th className="px-6 py-3 text-left font-semibold">Date</th>
               <th className="px-6 py-3 text-left font-semibold">Check In</th>
               <th className="px-6 py-3 text-left font-semibold">Check Out</th>
+              <th className="px-6 py-3 text-left font-semibold">Check In Location</th>
+              <th className="px-6 py-3 text-left font-semibold">Check Out Location</th>
               <th className="px-6 py-3 text-left font-semibold">Status</th>
             </tr>
           </thead>
@@ -161,6 +174,34 @@ export default function EmployeeAttendancePage() {
                   {formatTime(record.checkOutTime)}
                 </td>
                 <td className="px-6 py-4">
+                  {record.checkInLocation ? (
+                    <a
+                      href={getLocationLink(record.checkInLocation)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline text-xs"
+                    >
+                      View Location
+                    </a>
+                  ) : (
+                    <span className="text-gray-400 text-xs">No location</span>
+                  )}
+                </td>
+                <td className="px-6 py-4">
+                  {record.checkOutLocation ? (
+                    <a
+                      href={getLocationLink(record.checkOutLocation)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline text-xs"
+                    >
+                      View Location
+                    </a>
+                  ) : (
+                    <span className="text-gray-400 text-xs">No location</span>
+                  )}
+                </td>
+                <td className="px-6 py-4">
                   <span className={`px-2 py-1 rounded text-xs ${getStatusColor(record.status)}`}>
                     {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
                   </span>
@@ -169,7 +210,7 @@ export default function EmployeeAttendancePage() {
             ))}
             {attendanceRecords.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                   No attendance records found.
                 </td>
               </tr>
