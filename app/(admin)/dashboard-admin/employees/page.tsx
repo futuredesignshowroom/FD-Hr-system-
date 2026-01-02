@@ -20,6 +20,15 @@ export default function AdminEmployeesPage() {
 
   useEffect(() => {
     loadEmployees();
+
+    // Real-time subscription to employee changes
+    const unsubscribe = EmployeeService.subscribeToAllEmployees((updatedEmployees) => {
+      setEmployees(updatedEmployees);
+    }, (error) => {
+      console.error('Error subscribing to employee changes:', error);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const loadEmployees = async () => {

@@ -173,7 +173,28 @@ export class EmployeeService {
   }
 
   /**
-   * Subscribe to profile changes in real-time
+   * Subscribe to all employees changes in real-time
+   */
+  static subscribeToAllEmployees(
+    callback: (employees: Employee[]) => void,
+    onError?: (error: any) => void
+  ): () => void {
+    try {
+      return FirestoreDB.subscribeCollection<Employee>(
+        this.COLLECTION,
+        [],
+        callback,
+        onError
+      );
+    } catch (error) {
+      console.error('Error subscribing to all employees:', error);
+      if (onError) onError(error);
+      return () => {};
+    }
+  }
+
+  /**
+   * Subscribe to profile changes in real-time for a single user
    */
   static subscribeToProfileChanges(
     userId: string,

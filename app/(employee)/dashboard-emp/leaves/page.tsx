@@ -17,6 +17,7 @@ export default function EmployeeLeavesPage() {
   const { user } = useAuthStore();
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
+  const [policies, setPolicies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<{ startDate?: string; endDate?: string; reason?: string; balance?: string }>({});
@@ -73,8 +74,13 @@ export default function EmployeeLeavesPage() {
         console.error('Error listening to leave requests:', error);
       });
 
-      // Real-time listener for leave balances (if they exist)
-      const balancesQuery = query(collection(db, 'leaveBalance'), where('userId', '==', user.id));
+      // Real-time listener for leave balances for the current year
+      const currentYear = new Date().getFullYear();
+      const balancesQuery = query(
+        collection(db, 'leaveBalance'),
+        where('userId', '==', user.id),
+        where('year', '==', currentYear)
+      );
       const unsubscribeBalances = onSnapshot(balancesQuery, (snapshot) => {
         if (!snapshot.empty) {
           const balances = snapshot.docs.map(doc => ({
@@ -84,7 +90,7 @@ export default function EmployeeLeavesPage() {
             used: doc.data().used,
             remaining: doc.data().remaining,
             carryForward: doc.data().carryForward || 0,
-            year: doc.data().year || new Date().getFullYear(),
+            year: doc.data().year || currentYear,
           })) as LeaveBalance[];
           setLeaveBalances(balances);
         }
@@ -92,9 +98,23 @@ export default function EmployeeLeavesPage() {
         console.error('Error listening to leave balances:', error);
       });
 
+      // Real-time listener for leave policies so employees see policy changes immediately
+      const policiesQuery = query(collection(db, 'leaveConfig'));
+      const unsubscribePolicies = onSnapshot(policiesQuery, (snapshot) => {
+        if (!snapshot.empty) {
+          const policiesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setPolicies(policiesData);
+        } else {
+          setPolicies([]);
+        }
+      }, (error) => {
+        console.error('Error listening to leave policies:', error);
+      });
+
       return () => {
         unsubscribeLeaves();
         unsubscribeBalances();
+        unsubscribePolicies();
       };
     }
 
