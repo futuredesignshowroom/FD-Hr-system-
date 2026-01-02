@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { AttendanceService } from '@/services/attendance.service';
 import { useAuthStore } from '@/store/auth.store';
 import { Attendance } from '@/types/attendance';
 import Loader from '@/components/ui/Loader';
+import { FirestoreDB } from '@/lib/firestore';
+import { where } from 'firebase/firestore';
 
 export default function EmployeeAttendancePage() {
   const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([]);
@@ -14,28 +16,29 @@ export default function EmployeeAttendancePage() {
   const [checkingOut, setCheckingOut] = useState(false);
   const { user } = useAuthStore();
 
-  const loadAttendance = useCallback(async () => {
+  useEffect(() => {
     if (!user) return;
 
-    try {
-      setLoading(true);
-      const records = await AttendanceService.getUserAttendance(user.id);
-      // Sort by date descending
-      records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setAttendanceRecords(records);
-    } catch (err) {
-      setError('Failed to load attendance records');
-      console.error('Error loading attendance:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
+    setLoading(true);
+    const unsubscribe = FirestoreDB.subscribeCollection<Attendance>(
+      'attendance',
+      [where('userId', '==', user.id)],
+      (records) => {
+        // Sort by date descending
+        records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setAttendanceRecords(records);
+        setLoading(false);
+        setError('');
+      },
+      (error) => {
+        console.error('Error subscribing to attendance:', error);
+        setError('Failed to load attendance records');
+        setLoading(false);
+      }
+    );
 
-  useEffect(() => {
-    if (user) {
-      loadAttendance();
-    }
-  }, [user, loadAttendance]);
+    return () => unsubscribe();
+  }, [user]);
 
   const handleCheckIn = async () => {
     if (!user) return;
@@ -43,7 +46,6 @@ export default function EmployeeAttendancePage() {
     try {
       setCheckingIn(true);
       await AttendanceService.checkIn(user.id);
-      await loadAttendance(); // Refresh the list
     } catch (err) {
       console.error('Error checking in:', err);
       alert('Failed to check in. Please try again.');
@@ -65,7 +67,6 @@ export default function EmployeeAttendancePage() {
 
       if (todayRecord && todayRecord.id) {
         await AttendanceService.checkOut(todayRecord.id);
-        await loadAttendance(); // Refresh the list
       } else {
         alert('No check-in record found for today.');
       }
@@ -109,12 +110,6 @@ export default function EmployeeAttendancePage() {
     return (
       <div className="text-center py-8">
         <p className="text-red-600">{error}</p>
-        <button
-          onClick={loadAttendance}
-          className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Retry
-        </button>
       </div>
     );
   }

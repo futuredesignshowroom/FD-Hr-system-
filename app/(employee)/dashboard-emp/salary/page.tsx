@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { SalaryService } from '@/services/salary.service';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import Loader from '@/components/ui/Loader';
+import { FirestoreDB } from '@/lib/firestore';
+import { where } from 'firebase/firestore';
+import { Salary } from '@/types/salary';
 
 interface SalaryData {
   baseSalary: number;
@@ -22,38 +24,40 @@ export default function EmployeeSalaryPage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const { user } = useAuthStore();
 
-  const loadSalaryData = useCallback(async () => {
+  useEffect(() => {
     if (!user) return;
 
-    try {
-      setLoading(true);
-      const salary = await SalaryService.getSalary(user.id, selectedMonth, selectedYear);
-
-      if (salary) {
-        setSalaries([{
-          baseSalary: salary.baseSalary,
-          allowances: salary.allowances.map(a => ({ name: a.name, amount: a.amount })),
-          deductions: salary.deductions.map(d => ({ name: d.name, amount: d.amount, reason: d.reason })),
-          totalAllowances: salary.totalAllowances,
-          totalDeductions: salary.totalDeductions,
-          netSalary: salary.netSalary,
-        }]);
-      } else {
-        setSalaries([]);
+    setLoading(true);
+    const unsubscribe = FirestoreDB.subscribeCollection<Salary>(
+      'salaries',
+      [where('userId', '==', user.id)],
+      (allSalaries) => {
+        // Find salary for selected month/year
+        const salary = allSalaries.find(s => s.month === selectedMonth && s.year === selectedYear);
+        if (salary) {
+          setSalaries([{
+            baseSalary: salary.baseSalary,
+            allowances: salary.allowances.map(a => ({ name: a.name, amount: a.amount })),
+            deductions: salary.deductions.map(d => ({ name: d.name, amount: d.amount, reason: d.reason })),
+            totalAllowances: salary.totalAllowances,
+            totalDeductions: salary.totalDeductions,
+            netSalary: salary.netSalary,
+          }]);
+        } else {
+          setSalaries([]);
+        }
+        setLoading(false);
+        setError('');
+      },
+      (error) => {
+        console.error('Error subscribing to salaries:', error);
+        setError('Failed to load salary data');
+        setLoading(false);
       }
-    } catch (err) {
-      setError('Failed to load salary data');
-      console.error('Error loading salary:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [user, selectedMonth, selectedYear]);
+    );
 
-  useEffect(() => {
-    if (user) {
-      loadSalaryData();
-    }
-  }, [user, loadSalaryData]);
+    return () => unsubscribe();
+  }, [user, selectedMonth, selectedYear]);
 
   const getMonthName = (month: number) => {
     const months = [
@@ -84,12 +88,6 @@ export default function EmployeeSalaryPage() {
     return (
       <div className="text-center py-8">
         <p className="text-red-600">{error}</p>
-        <button
-          onClick={loadSalaryData}
-          className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Retry
-        </button>
       </div>
     );
   }
