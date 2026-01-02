@@ -11,7 +11,6 @@ import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import NotificationBell from '@/components/ui/NotificationBell';
 
 interface EmployeePerformance {
   attendance: { presentDays: number; totalDays: number; percentage: number };
@@ -185,7 +184,6 @@ export default function EmployeeDashboard() {
             <p className="text-green-100 text-sm lg:text-base">{user?.department} • Employee Dashboard</p>
             <p className="text-green-200 text-xs lg:text-sm mt-2">Here&apos;s your performance overview</p>
           </div>
-          <NotificationBell className="text-white" />
         </div>
       </div>
 

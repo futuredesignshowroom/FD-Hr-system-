@@ -138,10 +138,35 @@ export class SalaryService {
     deductions: Deduction[]
   ): Promise<Salary> {
     try {
+      // Get attendance for the month to calculate deductions
+      const attendanceService = await import('./attendance.service');
+      const attendanceRecord = await attendanceService.AttendanceService.getMonthlyAttendance(userId, month - 1, year); // month is 0-based in getMonthlyAttendance
+
+      // Calculate working days in month
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const workingDays = Math.min(26, daysInMonth); // Assume 26 working days or actual days if less
+
+      // Calculate absent days (total working days - present days)
+      const absentDays = workingDays - attendanceRecord.presentDays;
+
+      // Calculate per day salary
+      const perDaySalary = baseSalary / workingDays;
+
+      // Add deduction for absent days
+      const absentDeduction: Deduction = {
+        id: 'absent-deduction',
+        name: 'Absent Days Deduction',
+        amount: absentDays * perDaySalary,
+        reason: 'absent',
+      };
+
+      // Combine provided deductions with attendance deductions
+      const allDeductions = [...deductions, absentDeduction];
+
       const calculations = SalaryCalculator.calculateFullSalary(
         baseSalary,
         allowances,
-        deductions
+        allDeductions
       );
 
       const salary: Salary = {
@@ -149,7 +174,7 @@ export class SalaryService {
         userId,
         baseSalary,
         allowances,
-        deductions,
+        deductions: allDeductions,
         month,
         year,
         perDaySalary: calculations.perDaySalary,
@@ -269,17 +294,42 @@ export class SalaryService {
   ): Promise<void> {
     try {
       const existing = await this.getSalary(userId, month, year);
+
+      // Get attendance for the month to calculate deductions
+      const attendanceService = await import('./attendance.service');
+      const attendanceRecord = await attendanceService.AttendanceService.getMonthlyAttendance(userId, month - 1, year);
+
+      // Calculate working days in month
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const workingDays = Math.min(26, daysInMonth);
+
+      // Calculate absent days
+      const absentDays = workingDays - attendanceRecord.presentDays;
+
+      // Calculate per day salary
+      const perDaySalary = config.baseSalary / workingDays;
+
+      // Add deduction for absent days
+      const absentDeduction: Deduction = {
+        id: 'absent-deduction',
+        name: 'Absent Days Deduction',
+        amount: absentDays * perDaySalary,
+        reason: 'absent',
+      };
+
+      const deductions = [absentDeduction];
+
       const calculations = SalaryCalculator.calculateFullSalary(
         config.baseSalary,
         config.allowances,
-        []
+        deductions
       );
 
       if (existing) {
         await this.updateSalary(existing.id, {
           baseSalary: config.baseSalary,
           allowances: config.allowances,
-          deductions: existing.deductions || [],
+          deductions,
           perDaySalary: calculations.perDaySalary,
           totalAllowances: calculations.totalAllowances,
           totalDeductions: calculations.totalDeductions,

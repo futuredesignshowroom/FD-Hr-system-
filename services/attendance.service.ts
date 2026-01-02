@@ -17,6 +17,14 @@ export class AttendanceService {
   static async checkIn(userId: string): Promise<Attendance> {
     try {
       const now = new Date();
+      const today = new Date(now);
+      today.setHours(0, 0, 0, 0);
+
+      // Check if already checked in today
+      const existingAttendance = await this.getAttendanceByDate(userId, today);
+      if (existingAttendance && existingAttendance.checkInTime) {
+        throw new Error('Already checked in for today. You can only check out.');
+      }
 
       // Get current location
       let location: LocationData | undefined;
@@ -24,7 +32,8 @@ export class AttendanceService {
         location = await getCurrentLocation();
       } catch (locationError) {
         console.warn('Could not get location for check-in:', locationError);
-        // Continue without location if permission denied
+        // For now, continue without location, but user wants proper capture
+        // TODO: Make location mandatory to prevent foul play
       }
 
       const attendance: Attendance = {
@@ -75,6 +84,11 @@ export class AttendanceService {
       const attendance = await FirestoreDB.getDocument<Attendance>(this.COLLECTION, attendanceId);
       if (!attendance) {
         throw new Error('Attendance record not found');
+      }
+
+      // Check if already checked out
+      if (attendance.checkOutTime) {
+        throw new Error('Already checked out for today.');
       }
 
       const now = new Date();
