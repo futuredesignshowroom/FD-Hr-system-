@@ -142,21 +142,66 @@ export class MessageService {
     }
 
     try {
-      const q = query(collection(db, this.MESSAGES_COLLECTION), orderBy('createdAt', 'desc'), limit(200));
-      const unsubscribe = onSnapshot(
-        q,
+      // Subscribe to messages where user is sender OR recipient
+      const q1 = query(
+        collection(db, this.MESSAGES_COLLECTION),
+        where('senderId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(100)
+      );
+
+      const q2 = query(
+        collection(db, this.MESSAGES_COLLECTION),
+        where('recipientId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(100)
+      );
+
+      const unsubscribe1 = onSnapshot(
+        q1,
         (querySnapshot) => {
-          const all = querySnapshot.docs.map(d => ({ id: d.id, ...d.data(), createdAt: d.data().createdAt?.toDate() })) as Message[];
-          const filtered = all.filter(m => m.senderId === userId || m.recipientId === userId);
-          callback(filtered);
+          const sentMessages = querySnapshot.docs.map(d => ({
+            id: d.id,
+            ...d.data(),
+            createdAt: d.data().createdAt?.toDate()
+          })) as Message[];
+
+          // Get received messages too
+          const unsubscribe2 = onSnapshot(
+            q2,
+            (querySnapshot2) => {
+              const receivedMessages = querySnapshot2.docs.map(d => ({
+                id: d.id,
+                ...d.data(),
+                createdAt: d.data().createdAt?.toDate()
+              })) as Message[];
+
+              const allMessages = [...sentMessages, ...receivedMessages];
+              // Remove duplicates and sort
+              const uniqueMessages = allMessages.filter((msg, index, self) =>
+                index === self.findIndex(m => m.id === msg.id)
+              ).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+              callback(uniqueMessages);
+            },
+            (error) => {
+              console.error('Error subscribing to received messages:', error);
+              if (onError) onError(error);
+            }
+          );
+
+          return () => {
+            unsubscribe1();
+            unsubscribe2();
+          };
         },
         (error) => {
-          console.error('Error subscribing to user messages:', error);
+          console.error('Error subscribing to sent messages:', error);
           if (onError) onError(error);
         }
       );
 
-      return unsubscribe;
+      return unsubscribe1;
     } catch (error) {
       console.error('Error setting up message subscription:', error);
       if (onError) onError(error);
@@ -179,24 +224,65 @@ export class MessageService {
     }
 
     try {
-      const q = query(collection(db, this.MESSAGES_COLLECTION), orderBy('createdAt', 'asc'), limit(500));
-      const unsubscribe = onSnapshot(
-        q,
-        (querySnapshot) => {
-          const all = querySnapshot.docs.map(d => ({ id: d.id, ...d.data(), createdAt: d.data().createdAt?.toDate() })) as Message[];
-          const convo = all.filter(m =>
-            (m.senderId === userId1 && m.recipientId === userId2) ||
-            (m.senderId === userId2 && m.recipientId === userId1)
+      // Subscribe to messages from userId1 to userId2
+      const q1 = query(
+        collection(db, this.MESSAGES_COLLECTION),
+        where('senderId', '==', userId1),
+        where('recipientId', '==', userId2),
+        orderBy('createdAt', 'asc'),
+        limit(100)
+      );
+
+      // Subscribe to messages from userId2 to userId1
+      const q2 = query(
+        collection(db, this.MESSAGES_COLLECTION),
+        where('senderId', '==', userId2),
+        where('recipientId', '==', userId1),
+        orderBy('createdAt', 'asc'),
+        limit(100)
+      );
+
+      const unsubscribe1 = onSnapshot(
+        q1,
+        (querySnapshot1) => {
+          const messages1 = querySnapshot1.docs.map(d => ({
+            id: d.id,
+            ...d.data(),
+            createdAt: d.data().createdAt?.toDate()
+          })) as Message[];
+
+          const unsubscribe2 = onSnapshot(
+            q2,
+            (querySnapshot2) => {
+              const messages2 = querySnapshot2.docs.map(d => ({
+                id: d.id,
+                ...d.data(),
+                createdAt: d.data().createdAt?.toDate()
+              })) as Message[];
+
+              const allMessages = [...messages1, ...messages2];
+              // Sort messages chronologically
+              allMessages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+              callback(allMessages);
+            },
+            (error) => {
+              console.error('Error subscribing to conversation (direction 2):', error);
+              if (onError) onError(error);
+            }
           );
-          callback(convo.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
+
+          return () => {
+            unsubscribe1();
+            unsubscribe2();
+          };
         },
         (error) => {
-          console.error('Error subscribing to conversation:', error);
+          console.error('Error subscribing to conversation (direction 1):', error);
           if (onError) onError(error);
         }
       );
 
-      return unsubscribe;
+      return unsubscribe1;
     } catch (error) {
       console.error('Error setting up conversation subscription:', error);
       if (onError) onError(error);

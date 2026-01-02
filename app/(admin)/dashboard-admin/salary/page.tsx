@@ -273,9 +273,13 @@ export default function AdminSalaryPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleSetRules(employee)}
-                      className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                      className={`px-3 py-1 rounded text-sm ${
+                        employee.salaryConfig
+                          ? 'bg-orange-600 text-white hover:bg-orange-700'
+                          : 'bg-green-600 text-white hover:bg-green-700'
+                      }`}
                     >
-                      Set Rules
+                      {employee.salaryConfig ? 'Edit Rules' : 'Set Rules'}
                     </button>
                     {employee.salaryConfig && (
                       <button

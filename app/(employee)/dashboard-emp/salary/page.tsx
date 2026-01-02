@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/auth.store';
 import Loader from '@/components/ui/Loader';
 import { FirestoreDB } from '@/lib/firestore';
 import { where } from 'firebase/firestore';
-import { Salary } from '@/types/salary';
+import { Salary, SalaryConfig } from '@/types/salary';
 
 interface SalaryData {
   baseSalary: number;
@@ -23,6 +23,7 @@ interface SalaryData {
 export default function EmployeeSalaryPage() {
   const [salaries, setSalaries] = useState<SalaryData[]>([]);
   const [allSalaries, setAllSalaries] = useState<Salary[]>([]);
+  const [salaryConfig, setSalaryConfig] = useState<SalaryConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -70,6 +71,28 @@ export default function EmployeeSalaryPage() {
     return () => unsubscribe();
   }, [user, selectedMonth, selectedYear]);
 
+  // Subscribe to salary configuration changes
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubscribe = FirestoreDB.subscribeCollection<SalaryConfig>(
+      'salaryConfig',
+      [where('userId', '==', user.id)],
+      (configs) => {
+        if (configs.length > 0) {
+          setSalaryConfig(configs[0]);
+        } else {
+          setSalaryConfig(null);
+        }
+      },
+      (error) => {
+        console.error('Error subscribing to salary config:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
+
   const getMonthName = (month: number) => {
     const months = [
       'January', 'February', 'March', 'April', 'May', 'June',
@@ -108,6 +131,58 @@ export default function EmployeeSalaryPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Salary</h1>
+
+      {/* Current Salary Configuration */}
+      {salaryConfig && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-bold mb-4 text-green-600">Current Salary Structure</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Basic Information</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Base Salary:</span>
+                  <span className="font-semibold">PKR {salaryConfig.baseSalary.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Working Days/Month:</span>
+                  <span className="font-semibold">{salaryConfig.workingDaysPerMonth}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total Leaves Allowed:</span>
+                  <span className="font-semibold">{salaryConfig.totalLeavesAllowed}</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Allowances</h3>
+              {salaryConfig.allowances && salaryConfig.allowances.length > 0 ? (
+                <div className="space-y-2">
+                  {salaryConfig.allowances.map((allowance, index) => (
+                    <div key={index} className="flex justify-between">
+                      <span className="text-gray-600">{allowance.name}:</span>
+                      <span className="font-semibold">
+                        {allowance.type === 'percentage'
+                          ? `${allowance.amount}% of base`
+                          : `PKR ${allowance.amount.toLocaleString()}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500">No allowances configured</p>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> This is your current salary configuration. Your actual monthly salary may vary based on attendance, deductions, and other factors.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-bold mb-4">Select Month</h2>

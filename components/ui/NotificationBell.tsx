@@ -67,7 +67,10 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
         className="relative p-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM15 17H9a6 6 0 01-6-6V9a6 6 0 0110.71-4.36L15 7.41V17z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4a1 1 0 00-1-1H8a1 1 0 00-1 1v4H6a1 1 0 001 1h6a1 1 0 001-1z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 17h1a2 2 0 002-2V9a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2h1" />
+          <circle cx="9" cy="21" r="1" />
+          <circle cx="15" cy="21" r="1" />
         </svg>
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">

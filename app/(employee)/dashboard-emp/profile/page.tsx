@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { useAuthStore } from '@/store/auth.store';
 import { EmployeeService } from '@/services/employee.service';
@@ -33,6 +33,8 @@ export default function EmployeeProfilePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const createBasicEmployeeProfile = useCallback(async () => {
     if (!user) return;
@@ -106,6 +108,28 @@ export default function EmployeeProfilePage() {
     }
   }, [user?.id, createBasicEmployeeProfile]);
 
+  // Real-time subscription to profile changes
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const unsubscribe = EmployeeService.subscribeToProfileChanges(user.id, (updatedProfile) => {
+      if (updatedProfile) {
+        const profileData = {
+          ...updatedProfile,
+          name: `${updatedProfile.firstName} ${updatedProfile.lastName}`,
+          joinDate: updatedProfile.dateOfJoining.toISOString().split('T')[0],
+        };
+        setProfile(profileData);
+        setSuccess('Profile updated successfully!');
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    }, (error) => {
+      console.error('Profile subscription error:', error);
+    });
+
+    return () => unsubscribe();
+  }, [user?.id]);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
@@ -139,6 +163,57 @@ export default function EmployeeProfilePage() {
   const handleInputChange = (field: keyof EmployeeProfile, value: string) => {
     if (!profile) return;
     setProfile({ ...profile, [field]: value });
+  };
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !profile) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image size should be less than 5MB');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    setError('');
+
+    try {
+      // Convert to base64 for storage (you might want to use cloud storage instead)
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64 = e.target?.result as string;
+        await EmployeeService.updateEmployeeProfile(profile.id, { avatar: base64 });
+        setProfile({ ...profile, avatar: base64 });
+        setSuccess('Profile picture updated successfully!');
+        setTimeout(() => setSuccess(''), 3000);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setError('Failed to upload image');
+      console.error('Avatar upload error:', err);
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const getAvatarUrl = (avatar?: string) => {
+    if (avatar && avatar.startsWith('data:')) {
+      return avatar; // Base64 image
+    }
+    if (avatar && avatar.startsWith('http')) {
+      return avatar; // URL
+    }
+    // Generate initials-based avatar
+    const name = profile?.name || 'User';
+    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=3B82F6&color=FFFFFF&size=128`;
   };
 
   if (loading) return <Loader />;
@@ -197,18 +272,45 @@ export default function EmployeeProfilePage() {
           {/* Avatar */}
           <div className="relative">
             <Image
-              src={profile.avatar || "https://via.placeholder.com/120"}
+              src={getAvatarUrl(profile.avatar)}
               alt="Profile"
               width={128}
               height={128}
-              className="w-24 h-24 lg:w-32 lg:h-32 rounded-full border-4 border-gray-100"
+              className="w-24 h-24 lg:w-32 lg:h-32 rounded-full border-4 border-gray-100 object-cover"
+              onError={(e) => {
+                // Fallback to initials avatar if image fails to load
+                const target = e.target as HTMLImageElement;
+                const name = profile?.name || 'User';
+                const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
+                target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=3B82F6&color=FFFFFF&size=128`;
+              }}
             />
             {isEditing && (
-              <button className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </button>
+              <>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {uploadingAvatar ? (
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  )}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                />
+              </>
             )}
           </div>
 

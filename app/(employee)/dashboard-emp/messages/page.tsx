@@ -217,21 +217,30 @@ export default function EmployeeMessagesPage() {
     if (chatType === 'private' && selectedUsers.length === 1) {
       const selectedUser = users.find(u => u.userId === selectedUsers[0]);
       if (selectedUser) {
-        const newConversation: Conversation = {
-          id: Date.now().toString(),
-          type: 'private',
-          name: `${selectedUser.firstName} ${selectedUser.lastName}`,
-          participants: [user?.id || 'current', selectedUsers[0]],
-          avatar: selectedUser.avatar || `https://via.placeholder.com/40/${selectedUser.firstName.charAt(0)}${selectedUser.lastName.charAt(0)}`,
-          isOnline: false, // TODO: Implement online status
-        };
-        setConversations(prev => [newConversation, ...prev]);
-        setSelectedConversation(newConversation);
+        // Check if conversation already exists
+        const existingConversation = conversations.find(c => c.id === selectedUser.userId);
+        if (existingConversation) {
+          setSelectedConversation(existingConversation);
+          setShowChatOnMobile(true);
+        } else {
+          // Create new conversation with proper ID
+          const newConversation: Conversation = {
+            id: selectedUser.userId, // Use userId as conversation ID for consistency
+            type: 'private',
+            name: `${selectedUser.firstName} ${selectedUser.lastName}`,
+            participants: [user?.id || 'current', selectedUsers[0]],
+            avatar: selectedUser.avatar || `https://via.placeholder.com/40/${selectedUser.firstName.charAt(0)}${selectedUser.lastName.charAt(0)}`,
+            isOnline: false,
+          };
+          setConversations(prev => [newConversation, ...prev]);
+          setSelectedConversation(newConversation);
+          setShowChatOnMobile(true);
+        }
         setMessages([]);
       }
     } else if (chatType === 'group' && groupName && selectedUsers.length > 0) {
       const newConversation: Conversation = {
-        id: Date.now().toString(),
+        id: Date.now().toString(), // Keep timestamp for groups since they can have multiple
         type: 'group',
         name: groupName,
         participants: [user?.id || 'current', ...selectedUsers],
@@ -239,6 +248,7 @@ export default function EmployeeMessagesPage() {
       };
       setConversations(prev => [newConversation, ...prev]);
       setSelectedConversation(newConversation);
+      setShowChatOnMobile(true);
       setMessages([]);
     }
     setShowNewChat(false);

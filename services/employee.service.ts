@@ -171,4 +171,28 @@ export class EmployeeService {
       throw error;
     }
   }
+
+  /**
+   * Subscribe to profile changes in real-time
+   */
+  static subscribeToProfileChanges(
+    userId: string,
+    callback: (employee: Employee | null) => void,
+    onError?: (error: any) => void
+  ): () => void {
+    try {
+      return FirestoreDB.subscribeCollection<Employee>(
+        this.COLLECTION,
+        [where('userId', '==', userId)],
+        (employees) => {
+          callback(employees.length > 0 ? employees[0] : null);
+        },
+        onError
+      );
+    } catch (error) {
+      console.error('Error subscribing to profile changes:', error);
+      if (onError) onError(error);
+      return () => {};
+    }
+  }
 }
