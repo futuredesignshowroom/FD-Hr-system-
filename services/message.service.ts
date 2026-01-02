@@ -104,7 +104,6 @@ export class MessageService {
       throw error;
     }
   }
-}
 
   /**
    * Subscribe to messages for a user (real-time).
@@ -182,3 +181,4 @@ export class MessageService {
       return () => {};
     }
   }
+}
