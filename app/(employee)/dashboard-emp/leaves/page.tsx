@@ -115,14 +115,83 @@ export default function EmployeeLeavesPage() {
             year: doc.data().year || currentYear,
           })) as LeaveBalance[];
           setLeaveBalances(balances);
+        } else {
+          // If no balances exist, try to initialize them
+          LeaveConfigService.getLeavePolicies().then(policies => {
+            if (policies.length > 0) {
+              const newBalances: LeaveBalance[] = policies.map(policy => ({
+                userId: user.id,
+                leaveType: policy.leaveType as LeaveType,
+                totalAllowed: policy.allowedDaysPerYear,
+                used: 0,
+                remaining: policy.allowedDaysPerYear,
+                carryForward: 0,
+                year: currentYear,
+              }));
+
+              // Save the new balances
+              Promise.all(
+                newBalances.map(balance => LeaveConfigService.setUserLeaveBalance(balance))
+              ).then(() => {
+                setLeaveBalances(newBalances);
+              }).catch(error => {
+                console.error('Error initializing leave balances:', error);
+              });
+            }
+          }).catch(error => {
+            console.error('Error fetching leave policies:', error);
+          });
         }
       }, (error) => {
         console.error('Error listening to leave balances:', error);
       });
 
+      // Real-time listener for leave config changes (when admin updates policies)
+      const configQuery = query(collection(db, 'leaveConfig'));
+      const unsubscribeConfig = onSnapshot(configQuery, async (snapshot) => {
+        if (!snapshot.empty) {
+          // When policies change, check if user needs new leave balances
+          const policies = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as any[];
+
+          const currentBalances = await LeaveConfigService.getUserLeaveBalance(user.id, currentYear);
+
+          // Check if any policies don't have corresponding balances
+          const missingBalances = policies.filter(policy => 
+            !currentBalances.some(balance => balance.leaveType === policy.leaveType)
+          );
+
+          if (missingBalances.length > 0) {
+            // Create balances for missing policies
+            const newBalances: LeaveBalance[] = missingBalances.map(policy => ({
+              userId: user.id,
+              leaveType: policy.leaveType as LeaveType,
+              totalAllowed: policy.allowedDaysPerYear,
+              used: 0,
+              remaining: policy.allowedDaysPerYear,
+              carryForward: 0,
+              year: currentYear,
+            }));
+
+            await Promise.all(
+              newBalances.map(balance => LeaveConfigService.setUserLeaveBalance(balance))
+            );
+
+            // Refresh balances
+            const updatedBalances = await LeaveConfigService.getUserLeaveBalance(user.id, currentYear);
+            setLeaveBalances(updatedBalances);
+          }
+        }
+      }, (error) => {
+        console.error('Error listening to leave config:', error);
+      });
+
       return () => {
         unsubscribeLeaves();
         unsubscribeBalances();
+        unsubscribeConfig();
       };
     }
 

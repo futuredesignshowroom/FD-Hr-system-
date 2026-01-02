@@ -119,10 +119,19 @@ export default function EmployeeDashboard() {
         console.error('Error listening to salary:', error);
       });
 
+      // Real-time listener for leave config changes (when admin updates policies)
+      const configQuery = query(collection(db, 'leaveConfig'));
+      const unsubscribeConfig = onSnapshot(configQuery, () => {
+        fetchPerformance();
+      }, (error) => {
+        console.error('Error listening to leave config:', error);
+      });
+
       return () => {
         unsubscribeAttendance();
         unsubscribeLeaves();
         unsubscribeSalary();
+        unsubscribeConfig();
       };
     });
 
@@ -159,10 +168,22 @@ export default function EmployeeDashboard() {
 
     try {
       setCheckingOut(true);
-      await AttendanceService.checkOut(user.id);
-      // Refresh performance data
-      if (performance) {
-        fetchPerformance();
+      // Find today's attendance record from database
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const todayRecord = await AttendanceService.getAttendanceByDate(user.id, today);
+
+      if (todayRecord && todayRecord.id && !todayRecord.checkOutTime) {
+        await AttendanceService.checkOut(todayRecord.id);
+        // Refresh performance data
+        if (performance) {
+          fetchPerformance();
+        }
+      } else if (todayRecord && todayRecord.checkOutTime) {
+        setError('Already checked out for today.');
+      } else {
+        setError('No check-in record found for today.');
       }
     } catch (error) {
       console.error('Check-out failed:', error);
