@@ -43,6 +43,7 @@ export default function AdminMessagesPage() {
   const [groupName, setGroupName] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [users, setUsers] = useState<Employee[]>([]);
+  const [showChatOnMobile, setShowChatOnMobile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuthStore();
 
@@ -243,7 +244,9 @@ export default function AdminMessagesPage() {
   return (
     <div className="h-screen flex bg-gray-100">
       {/* Conversations Sidebar */}
-      <div className="w-full lg:w-80 bg-white border-r border-gray-200 flex flex-col">
+      <div className={`w-full lg:w-80 bg-white border-r border-gray-200 flex flex-col ${
+        showChatOnMobile ? 'hidden lg:flex' : 'flex'
+      }`}>
         {/* Header */}
         <div className="p-4 bg-green-600 text-white flex items-center justify-between">
           <h1 className="text-xl font-semibold">Chats</h1>
@@ -262,7 +265,10 @@ export default function AdminMessagesPage() {
           {conversations.map((conversation) => (
             <div
               key={conversation.id}
-              onClick={() => setSelectedConversation(conversation)}
+              onClick={() => {
+                setSelectedConversation(conversation);
+                setShowChatOnMobile(true);
+              }}
               className={`p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 ${
                 selectedConversation?.id === conversation.id ? 'bg-green-50 border-l-4 border-l-green-600' : ''
               }`}
@@ -310,12 +316,22 @@ export default function AdminMessagesPage() {
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className={`flex-1 flex flex-col ${
+        showChatOnMobile ? 'flex' : 'hidden lg:flex'
+      }`}>
         {selectedConversation ? (
           <>
             {/* Chat Header */}
             <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
               <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => setShowChatOnMobile(false)}
+                  className="lg:hidden p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
                 <Image
                   src={selectedConversation.avatar || 'https://via.placeholder.com/40'}
                   alt={selectedConversation.name}

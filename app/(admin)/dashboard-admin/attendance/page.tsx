@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { AttendanceService } from '@/services/attendance.service';
 import { EmployeeService } from '@/services/employee.service';
 import { Attendance, AttendanceStatus } from '@/types/attendance';
-import { safeDateToISOString, safeGetTime } from '@/utils/date';
+import { safeDateToISOString, safeGetTime, safeDate } from '@/utils/date';
 import { getLocationLink } from '@/utils/location';
 
 import Loader from '@/components/ui/Loader';
@@ -74,17 +74,17 @@ export default function AdminAttendancePage() {
       const allAttendance = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        date: doc.data().date?.toDate?.() || new Date(doc.data().date),
-        checkInTime: doc.data().checkInTime?.toDate?.() || new Date(doc.data().checkInTime),
-        checkOutTime: doc.data().checkOutTime?.toDate?.() || new Date(doc.data().checkOutTime),
-        createdAt: doc.data().createdAt?.toDate?.() || new Date(doc.data().createdAt),
-        updatedAt: doc.data().updatedAt?.toDate?.() || new Date(doc.data().updatedAt),
+        date: doc.data().date?.toDate?.() || safeDate(doc.data().date),
+        checkInTime: doc.data().checkInTime?.toDate?.() || safeDate(doc.data().checkInTime),
+        checkOutTime: doc.data().checkOutTime?.toDate?.() || safeDate(doc.data().checkOutTime),
+        createdAt: doc.data().createdAt?.toDate?.() || safeDate(doc.data().createdAt),
+        updatedAt: doc.data().updatedAt?.toDate?.() || safeDate(doc.data().updatedAt),
       })) as Attendance[];
 
       // Filter attendance by selected date and add employee info
       const filteredAttendance = allAttendance
         .filter(record => {
-          const recordDate = new Date(record.date).toISOString().split('T')[0];
+          const recordDate = safeDateToISOString(record.date);
           return recordDate === selectedDate;
         })
         .map(record => {
@@ -95,7 +95,7 @@ export default function AdminAttendancePage() {
             employeeEmail: employee?.email || 'Unknown',
           };
         })
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        .sort((a, b) => safeGetTime(b.createdAt) - safeGetTime(a.createdAt));
 
       setAttendanceRecords(filteredAttendance);
       setLoading(false);
