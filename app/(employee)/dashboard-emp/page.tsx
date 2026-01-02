@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { ReportsService } from '@/services/reports.service';
+import { AttendanceService } from '@/services/attendance.service';
 import Loader from '@/components/ui/Loader';
 import ProgressBar from '@/components/ui/ProgressBar';
 import { useRouter } from 'next/navigation';
@@ -33,7 +34,30 @@ export default function EmployeeDashboard() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [lastCheckIn, setLastCheckIn] = useState<Date | null>(null);
   const router = useRouter();
+
+  // Function to fetch performance data
+  const fetchPerformance = async () => {
+    if (!user?.id) return;
+
+    try {
+      const [performanceData, activitiesData] = await Promise.all([
+        ReportsService.getEmployeePerformance(user.id),
+        ReportsService.getEmployeeRecentActivities(user.id),
+      ]);
+      setPerformance(performanceData);
+      setActivities(activitiesData);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to load performance'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Hydrate auth state once on mount
@@ -61,25 +85,6 @@ export default function EmployeeDashboard() {
         router.push('/login');
         return;
       }
-
-      const fetchPerformance = async () => {
-        if (!user?.id) return;
-
-        try {
-          const [performanceData, activitiesData] = await Promise.all([
-            ReportsService.getEmployeePerformance(user.id),
-            ReportsService.getEmployeeRecentActivities(user.id),
-          ]);
-          setPerformance(performanceData);
-          setActivities(activitiesData);
-        } catch (err) {
-          setError(
-            err instanceof Error ? err.message : 'Failed to load performance'
-          );
-        } finally {
-          setLoading(false);
-        }
-      };
 
       fetchPerformance();
 
@@ -123,6 +128,49 @@ export default function EmployeeDashboard() {
 
     return () => unsubscribe();
   }, [user, router]); // Removed hydrate from dependencies
+
+  const handleCheckIn = async () => {
+    if (!user) return;
+
+    try {
+      setCheckingIn(true);
+      await AttendanceService.checkIn(user.id);
+      setLastCheckIn(new Date());
+      // Refresh performance data
+      if (performance) {
+        setPerformance({
+          ...performance,
+          attendance: {
+            ...performance.attendance,
+            presentDays: performance.attendance.presentDays + 1
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Check-in failed:', error);
+      setError('Failed to check in. Please try again.');
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
+  const handleCheckOut = async () => {
+    if (!user) return;
+
+    try {
+      setCheckingOut(true);
+      await AttendanceService.checkOut(user.id);
+      // Refresh performance data
+      if (performance) {
+        fetchPerformance();
+      }
+    } catch (error) {
+      console.error('Check-out failed:', error);
+      setError('Failed to check out. Please try again.');
+    } finally {
+      setCheckingOut(false);
+    }
+  };
 
   if (loading) return <Loader />;
 
@@ -305,6 +353,33 @@ export default function EmployeeDashboard() {
           {/* Quick Actions */}
           <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6">
             <h2 className="text-2xl font-bold mb-6 text-gray-800">Quick Actions</h2>
+            
+            {/* Check In/Out Buttons */}
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <h3 className="text-lg font-semibold mb-3 text-gray-700">Attendance</h3>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCheckIn}
+                  disabled={checkingIn}
+                  className="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  {checkingIn ? 'Checking In...' : 'Check In'}
+                </button>
+                <button
+                  onClick={handleCheckOut}
+                  disabled={checkingOut}
+                  className="flex-1 bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  {checkingOut ? 'Checking Out...' : 'Check Out'}
+                </button>
+              </div>
+              {lastCheckIn && (
+                <p className="text-sm text-gray-600 mt-2">
+                  Last check-in: {lastCheckIn.toLocaleTimeString()}
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <a
                 href="/dashboard-emp/attendance"

@@ -29,7 +29,7 @@ export default function EmployeeSalaryPage() {
 
     setLoading(true);
     const unsubscribe = FirestoreDB.subscribeCollection<Salary>(
-      'salaries',
+      'salary',
       [where('userId', '==', user.id)],
       (allSalaries) => {
         // Find salary for selected month/year

@@ -10,6 +10,7 @@ import Avatar from '../ui/Avatar';
 import { useAuthStore } from '@/store/auth.store';
 import { NotificationService, Notification } from '@/services/notification.service';
 import { LeaveService } from '@/services/leave.service';
+import { AttendanceService } from '@/services/attendance.service';
 
 interface TopbarProps {
   userRole: 'admin' | 'employee';
@@ -24,6 +25,8 @@ export default function Topbar({ userRole, userName = 'User', onMenuToggle, isMe
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [processingLeave, setProcessingLeave] = useState<string | null>(null);
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -168,6 +171,38 @@ export default function Topbar({ userRole, userName = 'User', onMenuToggle, isMe
     }
   };
 
+  const handleCheckIn = async () => {
+    if (!user) return;
+
+    try {
+      setCheckingIn(true);
+      await AttendanceService.checkIn(user.id);
+      // Show success message or update UI
+      alert('Successfully checked in!');
+    } catch (error) {
+      console.error('Check-in failed:', error);
+      alert('Failed to check in. Please try again.');
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
+  const handleCheckOut = async () => {
+    if (!user) return;
+
+    try {
+      setCheckingOut(true);
+      await AttendanceService.checkOut(user.id);
+      // Show success message or update UI
+      alert('Successfully checked out!');
+    } catch (error) {
+      console.error('Check-out failed:', error);
+      alert('Failed to check out. Please try again.');
+    } finally {
+      setCheckingOut(false);
+    }
+  };
+
   const formatTimeAgo = (date: Date) => {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
@@ -196,6 +231,26 @@ export default function Topbar({ userRole, userName = 'User', onMenuToggle, isMe
           </div>
         </div>
         <div className="flex items-center space-x-4 relative" ref={dropdownRef}>
+          {/* Check In/Out Buttons for Employees */}
+          {userRole === 'employee' && (
+            <div className="hidden md:flex items-center space-x-2">
+              <button
+                onClick={handleCheckIn}
+                disabled={checkingIn}
+                className="px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                {checkingIn ? 'Checking In...' : 'Check In'}
+              </button>
+              <button
+                onClick={handleCheckOut}
+                disabled={checkingOut}
+                className="px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                {checkingOut ? 'Checking Out...' : 'Check Out'}
+              </button>
+            </div>
+          )}
+
           {/* Notifications Bell */}
           {userRole === 'admin' && (
             <div className="relative" ref={notificationRef}>
