@@ -48,6 +48,56 @@ export const safeDate = (date: any): Date | null => {
 };
 
 /**
+ * Convert Firestore Timestamp to Date
+ */
+export const timestampToDate = (timestamp: any): Date | null => {
+  if (!timestamp) return null;
+  // If it's already a Date, return it
+  if (timestamp instanceof Date) return timestamp;
+  // If it's a Firestore Timestamp, convert it
+  if (timestamp && typeof timestamp.toDate === 'function') {
+    return timestamp.toDate();
+  }
+  // Try to create a Date from it
+  return safeDate(timestamp);
+};
+
+/**
+ * Convert Firestore data with Timestamps to proper Date objects
+ */
+export const convertFirestoreDates = (data: any): any => {
+  if (!data || typeof data !== 'object') return data;
+
+  const converted = { ...data };
+
+  // Convert common date fields
+  const dateFields = ['date', 'checkInTime', 'checkOutTime', 'createdAt', 'updatedAt', 'timestamp'];
+
+  for (const field of dateFields) {
+    if (converted[field]) {
+      converted[field] = timestampToDate(converted[field]);
+    }
+  }
+
+  // Convert nested location data
+  if (converted.checkInLocation) {
+    converted.checkInLocation = {
+      ...converted.checkInLocation,
+      timestamp: timestampToDate(converted.checkInLocation.timestamp)
+    };
+  }
+
+  if (converted.checkOutLocation) {
+    converted.checkOutLocation = {
+      ...converted.checkOutLocation,
+      timestamp: timestampToDate(converted.checkOutLocation.timestamp)
+    };
+  }
+
+  return converted;
+};
+
+/**
  * Safely format a date to ISO string (YYYY-MM-DD), returning empty string if invalid
  */
 export const safeDateToISOString = (date: any): string => {

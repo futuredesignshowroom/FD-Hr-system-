@@ -72,14 +72,6 @@ service cloud.firestore {
       allow read, write: if isAuth();
     }
 
-    // Messages - participants and admins can read; senders can create
-    match /messages/{messageId} {
-      allow read: if isAuth() && (resource.data.senderId == request.auth.uid || resource.data.recipientId == request.auth.uid || isAdmin());
-      allow create: if isAuth() && request.resource.data.senderId == request.auth.uid;
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-
     // Notifications - users can read their own and mark as read; admins can manage
     match /notifications/{notificationId} {
       allow read: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());

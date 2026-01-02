@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { AttendanceService } from '@/services/attendance.service';
 import { EmployeeService } from '@/services/employee.service';
 import { Attendance, AttendanceStatus } from '@/types/attendance';
-import { safeDateToISOString, safeGetTime, safeDate } from '@/utils/date';
+import { safeDateToISOString, safeGetTime, convertFirestoreDates } from '@/utils/date';
 import { getLocationLink } from '@/utils/location';
 
 import Loader from '@/components/ui/Loader';
@@ -73,12 +73,7 @@ export default function AdminAttendancePage() {
     const unsubscribeAttendance = onSnapshot(attendanceQuery, (snapshot) => {
       const allAttendance = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data(),
-        date: doc.data().date?.toDate?.() || safeDate(doc.data().date),
-        checkInTime: doc.data().checkInTime?.toDate?.() || safeDate(doc.data().checkInTime),
-        checkOutTime: doc.data().checkOutTime?.toDate?.() || safeDate(doc.data().checkOutTime),
-        createdAt: doc.data().createdAt?.toDate?.() || safeDate(doc.data().createdAt),
-        updatedAt: doc.data().updatedAt?.toDate?.() || safeDate(doc.data().updatedAt),
+        ...convertFirestoreDates(doc.data())
       })) as Attendance[];
 
       // Filter attendance by selected date and add employee info
@@ -88,7 +83,7 @@ export default function AdminAttendancePage() {
           return recordDate === selectedDate;
         })
         .map(record => {
-          const employee = employees.find(emp => emp.userId === record.userId);
+          const employee = employees.find(emp => emp.id === record.userId);
           return {
             ...record,
             employeeName: ((employee?.firstName || '') + ' ' + (employee?.lastName || '')).trim() || 'Unknown',

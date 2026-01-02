@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { Attendance } from '@/types/attendance';
 import { safeGetTime } from '@/utils/date';
 import { getLocationLink } from '@/utils/location';
+import { convertFirestoreDates } from '@/utils/date';
 import Loader from '@/components/ui/Loader';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -61,10 +62,13 @@ export default function EmployeeAttendancePage() {
         unsubscribe = onSnapshot(
           q,
           (querySnapshot) => {
-            const records = querySnapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            })) as Attendance[];
+            const records = querySnapshot.docs.map(doc => {
+              const data = doc.data();
+              return {
+                id: doc.id,
+                ...convertFirestoreDates(data)
+              };
+            }) as Attendance[];
 
             // Sort by date descending
             records.sort((a, b) => safeGetTime(b.date) - safeGetTime(a.date));

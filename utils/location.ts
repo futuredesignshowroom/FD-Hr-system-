@@ -39,9 +39,9 @@ export const getCurrentLocation = (): Promise<LocationData> => {
         reject(new Error(errorMessage));
       },
       {
-        enableHighAccuracy: true, // Enable high accuracy for exact location
-        timeout: 8000, // Increased timeout for better accuracy
-        maximumAge: 60000, // 1 minute cache
+        enableHighAccuracy: false, // Changed to false for better compatibility
+        timeout: 10000, // Increased timeout to 10 seconds
+        maximumAge: 300000, // 5 minutes cache
       }
     );
   });
