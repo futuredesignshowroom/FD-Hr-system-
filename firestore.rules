@@ -69,7 +69,7 @@ service cloud.firestore {
 
     // Settings - admins only
     match /settings/{doc=**} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAuth();
     }
 
     // Messages - participants and admins can read; senders can create
