@@ -83,7 +83,7 @@ service cloud.firestore {
     // Notifications - users can read their own and mark as read; admins can manage
     match /notifications/{notificationId} {
       allow read: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuth() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuth();
       allow update: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());
       allow delete: if isAdmin();
     }

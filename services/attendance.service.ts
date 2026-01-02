@@ -32,11 +32,15 @@ export class AttendanceService {
         userId,
         date: now,
         checkInTime: now,
-        checkInLocation: location,
         status: 'present',
         createdAt: now,
         updatedAt: now,
       };
+
+      // Only add location if we got it
+      if (location) {
+        attendance.checkInLocation = location;
+      }
 
       const docRef = await FirestoreDB.addDocument(
         this.COLLECTION,
@@ -84,11 +88,17 @@ export class AttendanceService {
         // Continue without location if permission denied
       }
 
-      await FirestoreDB.updateDocument(this.COLLECTION, attendanceId, {
+      const updateData: any = {
         checkOutTime: now,
-        checkOutLocation: location,
         updatedAt: now,
-      });
+      };
+
+      // Only add location if we got it
+      if (location) {
+        updateData.checkOutLocation = location;
+      }
+
+      await FirestoreDB.updateDocument(this.COLLECTION, attendanceId, updateData);
 
       // Create notification for admin
       try {
