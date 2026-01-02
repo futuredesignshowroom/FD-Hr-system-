@@ -11,6 +11,7 @@ import {
   orderBy,
   limit,
 } from 'firebase/firestore';
+import { LeaveConfigService } from './leave-config.service';
 
 // Helper function to ensure db is available
 function ensureDb(): Firestore {
@@ -466,6 +467,12 @@ export class ReportsService {
         salary = currentSalary ? currentSalary.data().netSalary : 0;
       }
 
+      // Get leave balances for current year
+      const leaveBalances = await LeaveConfigService.getUserLeaveBalance(userId, currentYear);
+      const totalLeaveBalance = leaveBalances.reduce((total, balance) => total + balance.totalAllowed, 0);
+      const usedLeaves = leaveBalances.reduce((total, balance) => total + balance.used, 0);
+      const remainingLeaves = leaveBalances.reduce((total, balance) => total + balance.remaining, 0);
+
       return {
         userId,
         month: currentMonth,
@@ -477,6 +484,9 @@ export class ReportsService {
         },
         leaves: {
           approvedDays: approvedLeaveDays,
+          totalBalance: totalLeaveBalance,
+          used: usedLeaves,
+          remaining: remainingLeaves,
         },
         salary,
       };
@@ -494,6 +504,9 @@ export class ReportsService {
         },
         leaves: {
           approvedDays: 0,
+          totalBalance: 0,
+          used: 0,
+          remaining: 0,
         },
         salary: 0,
       };

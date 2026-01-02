@@ -34,12 +34,35 @@ export default function EmployeeLeavesPage() {
 
     try {
       setLoading(true);
-      const [requests, balances] = await Promise.all([
+      const [requests, balances, policies] = await Promise.all([
         LeaveService.getUserLeaveRequests(user.id),
-        LeaveConfigService.getUserLeaveBalance(user.id)
+        LeaveConfigService.getUserLeaveBalance(user.id),
+        LeaveConfigService.getLeavePolicies()
       ]);
       setLeaveRequests(requests);
-      setLeaveBalances(balances);
+
+      // If no balances exist, initialize them based on policies
+      if (balances.length === 0 && policies.length > 0) {
+        const currentYear = new Date().getFullYear();
+        const newBalances: LeaveBalance[] = policies.map(policy => ({
+          userId: user.id,
+          leaveType: policy.leaveType as LeaveType,
+          totalAllowed: policy.allowedDaysPerYear,
+          used: 0,
+          remaining: policy.allowedDaysPerYear,
+          carryForward: 0,
+          year: currentYear,
+        }));
+
+        // Save the new balances
+        await Promise.all(
+          newBalances.map(balance => LeaveConfigService.setUserLeaveBalance(balance))
+        );
+
+        setLeaveBalances(newBalances);
+      } else {
+        setLeaveBalances(balances);
+      }
     } catch (error) {
       console.error('Error loading leave data:', error);
     } finally {
@@ -213,14 +236,12 @@ export default function EmployeeLeavesPage() {
 
   const getLeaveTypeOptions = () => {
     if (leaveBalances.length === 0) {
-      // Provide default leave types if no balances are configured
+      // No leave balances available
       return [
-        { value: 'casual', label: 'Casual Leave (12 days remaining)', disabled: false },
-        { value: 'sick', label: 'Sick Leave (12 days remaining)', disabled: false },
-        { value: 'earned', label: 'Earned Leave (30 days remaining)', disabled: false },
+        { value: '', label: 'No leave types configured', disabled: true },
       ];
     }
-    
+
     return leaveBalances.map(balance => ({
       value: balance.leaveType,
       label: `${balance.leaveType.charAt(0).toUpperCase() + balance.leaveType.slice(1)} Leave (${balance.remaining} days remaining)`,
@@ -238,11 +259,7 @@ export default function EmployeeLeavesPage() {
 
       {/* Leave Balance Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {(leaveBalances.length > 0 ? leaveBalances : [
-          { leaveType: 'casual', remaining: 12, used: 0, totalAllowed: 12 },
-          { leaveType: 'sick', remaining: 12, used: 0, totalAllowed: 12 },
-          { leaveType: 'earned', remaining: 30, used: 0, totalAllowed: 30 },
-        ]).map((balance) => (
+        {leaveBalances.map((balance) => (
           <div key={balance.leaveType} className="bg-white rounded-lg shadow p-4">
             <h3 className="text-gray-500 text-sm font-semibold mb-2 capitalize">
               {balance.leaveType}

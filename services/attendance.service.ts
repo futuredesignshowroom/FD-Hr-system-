@@ -149,11 +149,16 @@ export class AttendanceService {
         [where('userId', '==', userId)]
       );
 
+      // Find record for the specific date
+      const targetDate = new Date(date);
+      targetDate.setHours(0, 0, 0, 0);
+
       return (
-        records.find(
-          (r) =>
-            new Date(r.date).toDateString() === new Date(date).toDateString()
-        ) || null
+        records.find((r) => {
+          const recordDate = new Date(r.date);
+          recordDate.setHours(0, 0, 0, 0);
+          return recordDate.getTime() === targetDate.getTime();
+        }) || null
       );
     } catch (error) {
       console.error('Error getting attendance by date:', error);

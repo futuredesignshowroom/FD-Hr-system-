@@ -14,7 +14,7 @@ import { db } from '@/lib/firebase';
 
 interface EmployeePerformance {
   attendance: { presentDays: number; totalDays: number; percentage: number };
-  leaves: { approvedDays: number };
+  leaves: { approvedDays: number; totalBalance: number; used: number; remaining: number };
   salary: number;
 }
 
@@ -229,7 +229,7 @@ export default function EmployeeDashboard() {
                 <div>
                   <p className="text-orange-100 text-sm font-medium">Leaves Used</p>
                   <p className="text-3xl font-bold mt-1">
-                    {performance.leaves.approvedDays}
+                    {performance.leaves.used}
                   </p>
                 </div>
                 <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
@@ -239,13 +239,13 @@ export default function EmployeeDashboard() {
                 </div>
               </div>
               <ProgressBar
-                value={performance.leaves.approvedDays}
-                max={12}
+                value={performance.leaves.used}
+                max={performance.leaves.totalBalance}
                 color="bg-white"
                 label=""
               />
               <p className="text-orange-200 text-xs mt-2">
-                {12 - performance.leaves.approvedDays} days remaining this year
+                {performance.leaves.remaining} days remaining this year
               </p>
             </div>
 

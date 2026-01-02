@@ -31,13 +31,18 @@ export default function RootLayout({
                 href="https://digizaro.com/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+                className="flex items-center space-x-2 font-semibold text-blue-600 hover:text-blue-800 transition-colors"
               >
-                <strong>Digizaro</strong>
+                <img
+                  src="https://digizaro.com/wp-content/uploads/2023/12/digizaro-logo.png"
+                  alt="Digizaro Logo"
+                  className="h-6 w-auto"
+                />
+                <span>Digizaro</span>
               </a>
             </div>
             <div className="mt-1">
-              <span>Niche USKY Digital Solutions Agency</span>
+              <span>Digital Solutions Agency</span>
             </div>
           </footer>
         </ToastProvider>
