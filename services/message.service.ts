@@ -1,6 +1,7 @@
 // services/message.service.ts - Messaging Service
 
-import { where } from 'firebase/firestore';
+import { where, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { FirestoreDB } from '@/lib/firestore';
 import { Message } from '@/types/message';
 
@@ -104,3 +105,80 @@ export class MessageService {
     }
   }
 }
+
+  /**
+   * Subscribe to messages for a user (real-time).
+   * Returns an unsubscribe function.
+   */
+  static subscribeToUserMessages(
+    userId: string,
+    callback: (messages: Message[]) => void,
+    onError?: (error: any) => void
+  ): () => void {
+    if (!db) {
+      console.error('Firebase not initialized');
+      return () => {};
+    }
+
+    try {
+      const q = query(collection(db, this.MESSAGES_COLLECTION), orderBy('createdAt', 'desc'), limit(200));
+      const unsubscribe = onSnapshot(
+        q,
+        (querySnapshot) => {
+          const all = querySnapshot.docs.map(d => ({ id: d.id, ...d.data(), createdAt: d.data().createdAt?.toDate() })) as Message[];
+          const filtered = all.filter(m => m.senderId === userId || m.recipientId === userId);
+          callback(filtered);
+        },
+        (error) => {
+          console.error('Error subscribing to user messages:', error);
+          if (onError) onError(error);
+        }
+      );
+
+      return unsubscribe;
+    } catch (error) {
+      console.error('Error setting up message subscription:', error);
+      if (onError) onError(error);
+      return () => {};
+    }
+  }
+
+  /**
+   * Subscribe to messages between two users (conversation) in real-time.
+   */
+  static subscribeToConversation(
+    userId1: string,
+    userId2: string,
+    callback: (messages: Message[]) => void,
+    onError?: (error: any) => void
+  ): () => void {
+    if (!db) {
+      console.error('Firebase not initialized');
+      return () => {};
+    }
+
+    try {
+      const q = query(collection(db, this.MESSAGES_COLLECTION), orderBy('createdAt', 'asc'), limit(500));
+      const unsubscribe = onSnapshot(
+        q,
+        (querySnapshot) => {
+          const all = querySnapshot.docs.map(d => ({ id: d.id, ...d.data(), createdAt: d.data().createdAt?.toDate() })) as Message[];
+          const convo = all.filter(m =>
+            (m.senderId === userId1 && m.recipientId === userId2) ||
+            (m.senderId === userId2 && m.recipientId === userId1)
+          );
+          callback(convo.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
+        },
+        (error) => {
+          console.error('Error subscribing to conversation:', error);
+          if (onError) onError(error);
+        }
+      );
+
+      return unsubscribe;
+    } catch (error) {
+      console.error('Error setting up conversation subscription:', error);
+      if (onError) onError(error);
+      return () => {};
+    }
+  }

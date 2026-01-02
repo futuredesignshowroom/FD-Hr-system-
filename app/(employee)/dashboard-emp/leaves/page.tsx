@@ -10,6 +10,8 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function EmployeeLeavesPage() {
   const { user } = useAuthStore();
@@ -48,7 +50,55 @@ export default function EmployeeLeavesPage() {
   useEffect(() => {
     if (user) {
       loadData();
+
+      // Set up real-time listeners for employee's leave data
+      if (!db) {
+        console.error('Firebase not initialized');
+        return;
+      }
+
+      // Real-time listener for user's leave requests
+      const leavesQuery = query(collection(db, 'leaves'), where('userId', '==', user.id));
+      const unsubscribeLeaves = onSnapshot(leavesQuery, (snapshot) => {
+        const requests = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          startDate: doc.data().startDate?.toDate ? doc.data().startDate.toDate() : new Date(doc.data().startDate),
+          endDate: doc.data().endDate?.toDate ? doc.data().endDate.toDate() : new Date(doc.data().endDate),
+          createdAt: doc.data().createdAt?.toDate ? doc.data().createdAt.toDate() : new Date(doc.data().createdAt),
+          updatedAt: doc.data().updatedAt?.toDate ? doc.data().updatedAt.toDate() : new Date(doc.data().updatedAt),
+        })) as LeaveRequest[];
+        setLeaveRequests(requests);
+      }, (error) => {
+        console.error('Error listening to leave requests:', error);
+      });
+
+      // Real-time listener for leave balances (if they exist)
+      const balancesQuery = query(collection(db, 'leaveBalance'), where('userId', '==', user.id));
+      const unsubscribeBalances = onSnapshot(balancesQuery, (snapshot) => {
+        if (!snapshot.empty) {
+          const balances = snapshot.docs.map(doc => ({
+            userId: doc.data().userId,
+            leaveType: doc.data().leaveType,
+            totalAllowed: doc.data().totalAllowed,
+            used: doc.data().used,
+            remaining: doc.data().remaining,
+            carryForward: doc.data().carryForward || 0,
+            year: doc.data().year || new Date().getFullYear(),
+          })) as LeaveBalance[];
+          setLeaveBalances(balances);
+        }
+      }, (error) => {
+        console.error('Error listening to leave balances:', error);
+      });
+
+      return () => {
+        unsubscribeLeaves();
+        unsubscribeBalances();
+      };
     }
+
+    return () => {}; // Return empty cleanup function when no user
   }, [user, loadData]);
 
   const handleSubmit = async (e: React.FormEvent) => {

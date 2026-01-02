@@ -10,6 +10,9 @@ import {
   getDocs,
   getDoc,
   query,
+  onSnapshot,
+  orderBy,
+  limit,
   QueryConstraint,
   Timestamp,
   DocumentReference,
@@ -141,6 +144,83 @@ export class FirestoreDB {
       const friendlyError = parseFirebaseError(error);
       console.error(`Error adding document to ${collectionName}:`, error);
       throw friendlyError;
+    }
+  }
+
+  /**
+   * Subscribe to a collection query in real-time.
+   * Returns an unsubscribe function.
+   */
+  static subscribeCollection<T = any>(
+    collectionName: string,
+    constraints: QueryConstraint[] = [],
+    callback: (docs: T[]) => void,
+    onError?: (error: any) => void,
+    limitCount: number = 200
+  ): () => void {
+    if (!db) {
+      console.error('Firebase not initialized.');
+      return () => {};
+    }
+
+    try {
+      const q = query(collection(db!, collectionName), ...constraints, orderBy('createdAt', 'desc'), limit(limitCount));
+      const unsubscribe = onSnapshot(
+        q,
+        (querySnapshot) => {
+          const docs = querySnapshot.docs.map((d) => ({ id: d.id, ...this.convertData(d.data()) })) as T[];
+          callback(docs);
+        },
+        (error) => {
+          console.error(`Error subscribing to ${collectionName}:`, error);
+          if (onError) onError(error);
+        }
+      );
+
+      return unsubscribe;
+    } catch (error) {
+      console.error(`Error setting up subscription for ${collectionName}:`, error);
+      if (onError) onError?.(error);
+      return () => {};
+    }
+  }
+
+  /**
+   * Subscribe to a single document in real-time.
+   */
+  static subscribeDocument<T = any>(
+    collectionName: string,
+    docId: string,
+    callback: (doc: T | null) => void,
+    onError?: (error: any) => void
+  ): () => void {
+    if (!db) {
+      console.error('Firebase not initialized.');
+      return () => {};
+    }
+
+    try {
+      const docRef = doc(db!, collectionName, docId);
+      const unsubscribe = onSnapshot(
+        docRef,
+        (docSnap) => {
+          if (!docSnap.exists()) {
+            callback(null);
+            return;
+          }
+          callback({ id: docSnap.id, ...this.convertData(docSnap.data()) } as T);
+        },
+        (error) => {
+          console.error(`Error subscribing to document ${collectionName}/${docId}:`, error);
+          if (onError) onError(error);
+        }
+      );
+
+      return unsubscribe;
+    } catch (error) {
+      console.error(`Error setting up document subscription for ${collectionName}/${docId}:`, error);
+      if (onError) onError?.(error);
+      return () => {};
     }
   }
 

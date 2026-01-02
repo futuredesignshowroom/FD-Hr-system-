@@ -10,7 +10,7 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
-export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarProps) {
+export default function Sidebar({ userRole, isOpen = false, onClose }: SidebarProps) {
   const employeeMenu = [
     { 
       label: 'Dashboard', 

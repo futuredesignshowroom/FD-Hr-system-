@@ -67,6 +67,11 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Settings - admins only
+    match /settings/{doc=**} {
+      allow read, write: if isAdmin();
+    }
+
     // Messages - participants and admins can read; senders can create
     match /messages/{messageId} {
       allow read: if isAuth() && (resource.data.senderId == request.auth.uid || resource.data.recipientId == request.auth.uid || isAdmin());

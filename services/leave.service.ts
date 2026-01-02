@@ -5,6 +5,7 @@ import { FirestoreDB } from '@/lib/firestore';
 import { LeaveCalculator } from '@/lib/calculations';
 import { NotificationService } from './notification.service';
 import { EmployeeService } from './employee.service';
+import { LeaveConfigService } from './leave-config.service';
 import {
   LeaveRequest,
   LeavePolicy,
@@ -100,8 +101,21 @@ export class LeaveService {
     adminId?: string
   ): Promise<void> {
     try {
+      // First get the leave request to calculate days
+      const leaveRequest = await FirestoreDB.getDocument<LeaveRequest>(this.COLLECTION, docId);
+      if (!leaveRequest) {
+        throw new Error('Leave request not found');
+      }
+
+      // Calculate the number of days
+      const startDate = leaveRequest.startDate instanceof Date ? leaveRequest.startDate : new Date(leaveRequest.startDate);
+      const endDate = leaveRequest.endDate instanceof Date ? leaveRequest.endDate : new Date(leaveRequest.endDate);
+      const daysRequested = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+      // Update leave request status
       const updateData: any = {
         status: 'approved' as LeaveStatus,
+        totalDays: daysRequested,
         updatedAt: new Date(),
       };
       if (adminId) {
@@ -109,6 +123,44 @@ export class LeaveService {
         updateData.approvedDate = new Date();
       }
       await FirestoreDB.updateDocument(this.COLLECTION, docId, updateData);
+
+      // Update leave balance
+      try {
+        const currentYear = new Date().getFullYear();
+        const balances = await LeaveConfigService.getUserLeaveBalance(leaveRequest.userId, currentYear);
+
+        const balance = balances.find(b => b.leaveType === leaveRequest.leaveType);
+        if (balance) {
+          // Update existing balance
+          const updatedBalance: LeaveBalance = {
+            ...balance,
+            used: balance.used + daysRequested,
+            remaining: balance.remaining - daysRequested,
+          };
+          await LeaveConfigService.setUserLeaveBalance(updatedBalance);
+        } else {
+          // Create default balance if not exists
+          const policies = await LeaveConfigService.getLeavePolicies();
+          const policy = policies.find(p => p.leaveType === leaveRequest.leaveType);
+
+          if (policy) {
+            const newBalance: LeaveBalance = {
+              userId: leaveRequest.userId,
+              leaveType: leaveRequest.leaveType,
+              totalAllowed: policy.allowedDaysPerYear,
+              used: daysRequested,
+              remaining: policy.allowedDaysPerYear - daysRequested,
+              carryForward: 0,
+              year: currentYear,
+            };
+            await LeaveConfigService.setUserLeaveBalance(newBalance);
+          }
+        }
+      } catch (balanceError) {
+        console.error('Error updating leave balance:', balanceError);
+        // Don't fail the approval if balance update fails
+      }
+
     } catch (error) {
       console.error('Error approving leave:', error);
       throw error;

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { MessageService } from '@/services/message.service';
+import { Message } from '@/types/message';
 import { EmployeeService } from '@/services/employee.service';
 import { Employee } from '@/types/employee';
 import { useAuthStore } from '@/store/auth.store';
@@ -52,36 +53,7 @@ export default function AdminMessagesPage() {
       // Load all employees for messaging
       const allUsers = await EmployeeService.getAllEmployees();
       setUsers(allUsers);
-
-      // Load user's messages to create conversations
-      const userMessages = await MessageService.getUserMessages(user.id);
-      
-      // Create conversations from messages
-      const conversationMap = new Map<string, Conversation>();
-      
-      userMessages.forEach(message => {
-        const otherUserId = message.senderId === user.id ? message.recipientId : message.senderId;
-        const otherUser = allUsers.find(u => u.userId === otherUserId);
-        
-        if (otherUser && !conversationMap.has(otherUserId)) {
-          conversationMap.set(otherUserId, {
-            id: otherUserId,
-            type: 'private',
-            name: `${otherUser.firstName} ${otherUser.lastName}`,
-            participants: [user.id, otherUserId],
-            avatar: otherUser.avatar || `https://via.placeholder.com/40/${otherUser.firstName.charAt(0)}${otherUser.lastName.charAt(0)}`,
-            isOnline: false, // TODO: Implement online status
-            lastMessage: {
-              content: message.content,
-              senderName: message.senderId === user.id ? 'You' : `${otherUser.firstName} ${otherUser.lastName}`,
-              createdAt: message.createdAt,
-              isRead: message.isRead || false,
-            },
-          });
-        }
-      });
-
-      setConversations(Array.from(conversationMap.values()));
+      // Conversations will be built from real-time messages via subscription below
     } catch (error) {
       console.error('Error loading users and conversations:', error);
     }
@@ -91,6 +63,56 @@ export default function AdminMessagesPage() {
     loadUsersAndConversations();
   }, [loadUsersAndConversations]);
 
+  // Real-time subscription to user's messages -> build conversations map
+  useEffect(() => {
+    if (!user || users.length === 0) return;
+    const unsubscribe = MessageService.subscribeToUserMessages(user.id, (userMessages) => {
+      const conversationMap = new Map<string, Conversation>();
+
+      userMessages.forEach((message) => {
+        const otherUserId = message.senderId === user.id ? message.recipientId : message.senderId;
+        const otherUser = users.find(u => u.userId === otherUserId);
+
+        if (otherUser) {
+          const existing = conversationMap.get(otherUserId);
+          const lastMessage = {
+            content: message.content,
+            senderName: message.senderId === user.id ? 'You' : `${otherUser.firstName} ${otherUser.lastName}`,
+            createdAt: message.createdAt,
+            isRead: message.isRead || false,
+          };
+
+          if (!existing) {
+            conversationMap.set(otherUserId, {
+              id: otherUserId,
+              type: 'private',
+              name: `${otherUser.firstName} ${otherUser.lastName}`,
+              participants: [user.id, otherUserId],
+              avatar: otherUser.avatar || `https://via.placeholder.com/40/${otherUser.firstName.charAt(0)}${otherUser.lastName.charAt(0)}`,
+              isOnline: false,
+              lastMessage,
+            });
+          } else {
+            // update lastMessage if newer
+            if (existing.lastMessage && existing.lastMessage.createdAt < lastMessage.createdAt) {
+              existing.lastMessage = lastMessage;
+              conversationMap.set(otherUserId, existing);
+            }
+          }
+        }
+      });
+
+      const convs = Array.from(conversationMap.values()).sort((a,b) => {
+        const ta = a.lastMessage?.createdAt?.getTime() || 0;
+        const tb = b.lastMessage?.createdAt?.getTime() || 0;
+        return tb - ta;
+      });
+      setConversations(convs);
+    }, (err) => console.error('Message subscription error:', err));
+
+    return () => unsubscribe();
+  }, [user, users]);
+
   useEffect(() => {
     // Scroll to bottom when new messages arrive
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -98,34 +120,61 @@ export default function AdminMessagesPage() {
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedConversation) return;
+    if (!newMessage.trim() || !selectedConversation || !user) return;
 
-    const message: ChatMessage = {
-      id: Date.now().toString(),
-      senderId: 'admin',
-      senderName: 'Admin',
-      content: newMessage,
+    const msg: Message = {
+      id: '',
+      senderId: user.id,
+      senderName: user.name || 'Admin',
+      recipientId: selectedConversation.id,
+      recipientName: selectedConversation.name,
+      subject: '',
+      content: newMessage.trim(),
+      isRead: false,
+      attachments: [],
       createdAt: new Date(),
-      status: 'sent',
-      messageType: 'text',
+      updatedAt: new Date(),
     };
 
-    setMessages(prev => [...prev, message]);
+    // Optimistic UI push
+    setMessages(prev => [...prev, {
+      id: Date.now().toString(),
+      senderId: msg.senderId,
+      senderName: msg.senderName,
+      content: msg.content,
+      createdAt: msg.createdAt,
+      status: 'sending',
+      messageType: 'text',
+    }]);
+
     setNewMessage('');
 
-    // Simulate message status changes
-    setTimeout(() => {
-      setMessages(prev => prev.map(msg =>
-        msg.id === message.id ? { ...msg, status: 'delivered' } : msg
-      ));
-    }, 1000);
-
-    setTimeout(() => {
-      setMessages(prev => prev.map(msg =>
-        msg.id === message.id ? { ...msg, status: 'read' } : msg
-      ));
-    }, 2000);
+    // Persist
+    MessageService.sendMessage(msg).catch((err) => {
+      console.error('Failed to send message:', err);
+      // Optionally show error to user
+    });
   };
+
+  // Subscribe to selected conversation messages
+  useEffect(() => {
+    if (!selectedConversation || !user) return;
+    const otherId = selectedConversation.id;
+    const unsubscribe = MessageService.subscribeToConversation(user.id, otherId, (msgs) => {
+      const chatMsgs: ChatMessage[] = msgs.map(m => ({
+        id: m.id,
+        senderId: m.senderId,
+        senderName: m.senderName || (m.senderId === user.id ? 'You' : selectedConversation.name),
+        content: m.content,
+        createdAt: m.createdAt,
+        status: 'sent',
+        messageType: 'text',
+      }));
+      setMessages(chatMsgs);
+    }, (err) => console.error('Conversation subscription error:', err));
+
+    return () => unsubscribe();
+  }, [selectedConversation, user]);
 
   const handleStartNewChat = () => {
     if (chatType === 'private' && selectedUsers.length === 1) {
