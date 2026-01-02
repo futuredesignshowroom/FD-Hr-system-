@@ -138,15 +138,17 @@ export default function EmployeeAttendancePage() {
 
     try {
       setCheckingOut(true);
-      // Find today's attendance record
-      const today = new Date().toDateString();
-      const todayRecord = attendanceRecords.find(
-        record => new Date(record.date).toDateString() === today
-      );
+      // Find today's attendance record from database
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const todayRecord = await AttendanceService.getAttendanceByDate(user.id, today);
 
-      if (todayRecord && todayRecord.id) {
+      if (todayRecord && todayRecord.id && !todayRecord.checkOutTime) {
         await AttendanceService.checkOut(todayRecord.id);
         alert('Successfully checked out!');
+      } else if (todayRecord && todayRecord.checkOutTime) {
+        alert('Already checked out for today.');
       } else {
         alert('No check-in record found for today.');
       }
