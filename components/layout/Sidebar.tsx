@@ -118,11 +118,11 @@ export default function Sidebar({ userRole, isOpen = false, onClose }: SidebarPr
       )
     },
     { 
-      label: 'Salary', 
-      href: '/dashboard-admin/salary', 
+      label: 'Payroll', 
+      href: '/dashboard-admin/payroll', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
         </svg>
       )
     },
@@ -170,7 +170,7 @@ export default function Sidebar({ userRole, isOpen = false, onClose }: SidebarPr
 
       {/* Sidebar */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50
+        fixed lg:static inset-y-0 left-0 ${isOpen ? 'z-[60]' : 'z-50'}
         w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col
         transform transition-transform duration-300 ease-in-out
         border-r border-slate-700/50 shadow-2xl

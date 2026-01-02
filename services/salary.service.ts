@@ -132,6 +132,7 @@ export class SalaryService {
         totalAllowances: calculations.totalAllowances,
         totalDeductions: calculations.totalDeductions,
         netSalary: calculations.netSalary,
+        paymentStatus: 'pending',
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -143,6 +144,74 @@ export class SalaryService {
     } catch (error) {
       console.error('Error calculating and creating salary:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Update salary payment status
+   */
+  static async updatePaymentStatus(
+    docId: string,
+    paymentStatus: 'pending' | 'paid' | 'overdue',
+    paymentDate?: Date
+  ): Promise<void> {
+    try {
+      const updates: Partial<Salary> = {
+        paymentStatus,
+        updatedAt: new Date(),
+      };
+
+      if (paymentDate) {
+        updates.paymentDate = paymentDate;
+      }
+
+      await FirestoreDB.updateDocument(this.COLLECTION, docId, updates);
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get salaries by payment status
+   */
+  static async getSalariesByStatus(
+    paymentStatus: 'pending' | 'paid' | 'overdue'
+  ): Promise<Salary[]> {
+    try {
+      return await FirestoreDB.queryCollection<Salary>(this.COLLECTION, [
+        where('paymentStatus', '==', paymentStatus),
+      ]);
+    } catch (error) {
+      console.error('Error getting salaries by status:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get all salaries for payroll management (Admin only)
+   */
+  static async getAllSalaries(): Promise<Salary[]> {
+    try {
+      return await FirestoreDB.getCollection<Salary>(this.COLLECTION);
+    } catch (error) {
+      console.error('Error getting all salaries:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Subscribe to salaries collection in real-time
+   */
+  static subscribeSalaries(
+    callback: (salaries: Salary[]) => void,
+    onError?: (error: any) => void
+  ): () => void {
+    try {
+      return FirestoreDB.subscribeCollection<Salary>(this.COLLECTION, [], callback, onError);
+    } catch (error) {
+      console.error('Error subscribing to salaries:', error);
+      return () => {};
     }
   }
 }

@@ -10,6 +10,8 @@ export interface Salary {
   netSalary: number;
   month: number;
   year: number;
+  paymentStatus: 'pending' | 'paid' | 'overdue';
+  paymentDate?: Date;
   createdAt: Date;
   updatedAt: Date;
 }

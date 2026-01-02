@@ -14,10 +14,15 @@ interface SalaryData {
   totalAllowances: number;
   totalDeductions: number;
   netSalary: number;
+  paymentStatus: 'pending' | 'paid' | 'overdue';
+  paymentDate?: Date;
+  month: number;
+  year: number;
 }
 
 export default function EmployeeSalaryPage() {
   const [salaries, setSalaries] = useState<SalaryData[]>([]);
+  const [allSalaries, setAllSalaries] = useState<Salary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -31,9 +36,11 @@ export default function EmployeeSalaryPage() {
     const unsubscribe = FirestoreDB.subscribeCollection<Salary>(
       'salary',
       [where('userId', '==', user.id)],
-      (allSalaries) => {
+      (allSalariesData) => {
+        setAllSalaries(allSalariesData);
+        
         // Find salary for selected month/year
-        const salary = allSalaries.find(s => s.month === selectedMonth && s.year === selectedYear);
+        const salary = allSalariesData.find(s => s.month === selectedMonth && s.year === selectedYear);
         if (salary) {
           setSalaries([{
             baseSalary: salary.baseSalary,
@@ -42,6 +49,10 @@ export default function EmployeeSalaryPage() {
             totalAllowances: salary.totalAllowances,
             totalDeductions: salary.totalDeductions,
             netSalary: salary.netSalary,
+            paymentStatus: salary.paymentStatus || 'pending',
+            paymentDate: salary.paymentDate,
+            month: salary.month,
+            year: salary.year,
           }]);
         } else {
           setSalaries([]);
@@ -118,51 +129,101 @@ export default function EmployeeSalaryPage() {
       </div>
 
       {currentSalary ? (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold mb-6">
-            Salary Breakdown - {getMonthName(selectedMonth)} {selectedYear}
-          </h2>
-          <div className="space-y-4">
-            <div className="flex justify-between border-b pb-4">
-              <span>Base Salary</span>
-              <span className="font-semibold">PKR {currentSalary.baseSalary.toLocaleString()}</span>
+        <div className="space-y-6">
+          {/* Current Salary Card */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">
+                Salary Breakdown - {getMonthName(selectedMonth)} {selectedYear}
+              </h2>
+              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                currentSalary.paymentStatus === 'paid'
+                  ? 'bg-green-100 text-green-800'
+                  : currentSalary.paymentStatus === 'overdue'
+                  ? 'bg-red-100 text-red-800'
+                  : 'bg-yellow-100 text-yellow-800'
+              }`}>
+                {currentSalary.paymentStatus.charAt(0).toUpperCase() + currentSalary.paymentStatus.slice(1)}
+                {currentSalary.paymentDate && (
+                  <span className="block text-xs">
+                    {new Date(currentSalary.paymentDate).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
             </div>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between border-b pb-4">
+                <span>Base Salary</span>
+                <span className="font-semibold">PKR {currentSalary.baseSalary.toLocaleString()}</span>
+              </div>
 
-            {currentSalary.allowances.length > 0 && (
-              <div className="border-b pb-4">
-                <h3 className="font-semibold mb-2">Allowances</h3>
-                {currentSalary.allowances.map((allowance, index) => (
-                  <div key={index} className="flex justify-between text-sm">
-                    <span>{allowance.name}</span>
-                    <span>PKR {allowance.amount.toLocaleString()}</span>
+              {currentSalary.allowances.length > 0 && (
+                <div className="border-b pb-4">
+                  <h3 className="font-semibold mb-2">Allowances</h3>
+                  {currentSalary.allowances.map((allowance, index) => (
+                    <div key={index} className="flex justify-between text-sm">
+                      <span>{allowance.name}</span>
+                      <span>PKR {allowance.amount.toLocaleString()}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between font-semibold mt-2 pt-2 border-t">
+                    <span>Total Allowances</span>
+                    <span>PKR {currentSalary.totalAllowances.toLocaleString()}</span>
+                  </div>
+                </div>
+              )}
+
+              {currentSalary.deductions.length > 0 && (
+                <div className="border-b pb-4">
+                  <h3 className="font-semibold mb-2 text-red-600">Deductions</h3>
+                  {currentSalary.deductions.map((deduction, index) => (
+                    <div key={index} className="flex justify-between text-sm">
+                      <span>{deduction.name} {deduction.reason && `(${deduction.reason})`}</span>
+                      <span className="text-red-600">-PKR {deduction.amount.toLocaleString()}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between font-semibold mt-2 pt-2 border-t text-red-600">
+                    <span>Total Deductions</span>
+                    <span>-PKR {currentSalary.totalDeductions.toLocaleString()}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-between pt-4 bg-blue-50 p-4 rounded">
+                <span className="font-bold">Net Salary</span>
+                <span className="font-bold text-lg">PKR {currentSalary.netSalary.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Salary History */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-bold mb-4">Salary History</h2>
+            <div className="space-y-3">
+              {allSalaries
+                .sort((a, b) => {
+                  if (a.year !== b.year) return b.year - a.year;
+                  return b.month - a.month;
+                })
+                .slice(0, 6) // Show last 6 months
+                .map((salary) => (
+                  <div key={`${salary.month}-${salary.year}`} className="flex justify-between items-center p-3 border rounded">
+                    <div>
+                      <span className="font-medium">{getMonthName(salary.month)} {salary.year}</span>
+                      <span className={`ml-2 px-2 py-1 rounded text-xs ${
+                        salary.paymentStatus === 'paid'
+                          ? 'bg-green-100 text-green-800'
+                          : salary.paymentStatus === 'overdue'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {salary.paymentStatus}
+                      </span>
+                    </div>
+                    <span className="font-semibold">PKR {salary.netSalary.toLocaleString()}</span>
                   </div>
                 ))}
-                <div className="flex justify-between font-semibold mt-2 pt-2 border-t">
-                  <span>Total Allowances</span>
-                  <span>PKR {currentSalary.totalAllowances.toLocaleString()}</span>
-                </div>
-              </div>
-            )}
-
-            {currentSalary.deductions.length > 0 && (
-              <div className="border-b pb-4">
-                <h3 className="font-semibold mb-2 text-red-600">Deductions</h3>
-                {currentSalary.deductions.map((deduction, index) => (
-                  <div key={index} className="flex justify-between text-sm">
-                    <span>{deduction.name} {deduction.reason && `(${deduction.reason})`}</span>
-                    <span className="text-red-600">-PKR {deduction.amount.toLocaleString()}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between font-semibold mt-2 pt-2 border-t text-red-600">
-                  <span>Total Deductions</span>
-                  <span>-PKR {currentSalary.totalDeductions.toLocaleString()}</span>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-between pt-4 bg-blue-50 p-4 rounded">
-              <span className="font-bold">Net Salary</span>
-              <span className="font-bold text-lg">PKR {currentSalary.netSalary.toLocaleString()}</span>
             </div>
           </div>
         </div>
