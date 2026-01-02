@@ -22,9 +22,12 @@ export class AttendanceService {
 
       // Check if already checked in today
       const existingAttendance = await this.getAttendanceByDate(userId, today);
-      if (existingAttendance && existingAttendance.checkInTime) {
-        throw new Error('Already checked in for today. You can only check out.');
+      if (existingAttendance && existingAttendance.checkInTime && !existingAttendance.checkOutTime) {
+        throw new Error('Already checked in for today. Please check out first if you want to check in again.');
       }
+
+      // If already checked in and checked out, allow re-check-in (maybe they forgot to check out)
+      // But create a new record or update existing one?
 
       // Get current location
       let location: LocationData | undefined;
@@ -146,23 +149,38 @@ export class AttendanceService {
 
       const records = await FirestoreDB.queryCollection<Attendance>(
         this.COLLECTION,
-        [where('userId', '==', userId)]
+        [
+          where('userId', '==', userId),
+          where('date', '>=', startOfDay),
+          where('date', '<=', endOfDay)
+        ]
       );
 
-      // Find record for the specific date
-      const targetDate = new Date(date);
-      targetDate.setHours(0, 0, 0, 0);
-
-      return (
-        records.find((r) => {
-          const recordDate = new Date(r.date);
-          recordDate.setHours(0, 0, 0, 0);
-          return recordDate.toDateString() === targetDate.toDateString();
-        }) || null
-      );
+      return records.length > 0 ? records[0] : null;
     } catch (error) {
       console.error('Error getting attendance by date:', error);
-      throw error;
+      // Fallback to the old method if the query fails
+      try {
+        const allRecords = await FirestoreDB.queryCollection<Attendance>(
+          this.COLLECTION,
+          [where('userId', '==', userId)]
+        );
+
+        const targetDate = new Date(date);
+        targetDate.setHours(0, 0, 0, 0);
+        const targetDateStr = targetDate.toDateString();
+
+        return (
+          allRecords.find((r) => {
+            const recordDate = new Date(r.date);
+            recordDate.setHours(0, 0, 0, 0);
+            return recordDate.toDateString() === targetDateStr;
+          }) || null
+        );
+      } catch (fallbackError) {
+        console.error('Fallback query also failed:', fallbackError);
+        throw error;
+      }
     }
   }
 

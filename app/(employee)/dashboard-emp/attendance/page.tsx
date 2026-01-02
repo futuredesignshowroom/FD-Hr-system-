@@ -119,14 +119,18 @@ export default function EmployeeAttendancePage() {
 
     try {
       setCheckingIn(true);
+      console.log('Starting check-in process...');
       await AttendanceService.checkIn(user.id);
+      console.log('Check-in successful');
       alert('Successfully checked in!');
     } catch (err: any) {
-      console.error('Error checking in:', err);
+      console.error('Check-in error:', err);
       if (err.message?.includes('Location')) {
         alert('Check-in successful, but location could not be captured. Please enable location permissions for better tracking.');
+      } else if (err.message?.includes('Already checked in')) {
+        alert('You are already checked in for today. You can only check out.');
       } else {
-        alert('Failed to check in. Please try again.');
+        alert(`Failed to check in: ${err.message || 'Please try again.'}`);
       }
     } finally {
       setCheckingIn(false);
