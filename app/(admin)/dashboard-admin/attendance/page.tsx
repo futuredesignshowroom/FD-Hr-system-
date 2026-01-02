@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { AttendanceService } from '@/services/attendance.service';
 import { EmployeeService } from '@/services/employee.service';
 import { Attendance, AttendanceStatus } from '@/types/attendance';
- 
+import { safeDateToISOString, safeGetTime } from '@/utils/date';
+
 import Loader from '@/components/ui/Loader';
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -34,7 +35,7 @@ export default function AdminAttendancePage() {
       // Filter attendance by selected date and add employee info
       const filteredAttendance = allAttendance
         .filter(record => {
-          const recordDate = new Date(record.date).toISOString().split('T')[0];
+          const recordDate = safeDateToISOString(record.date);
           return recordDate === selectedDate;
         })
         .map(record => {
@@ -45,7 +46,7 @@ export default function AdminAttendancePage() {
             employeeEmail: employee?.email || 'Unknown',
           };
         })
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        .sort((a, b) => safeGetTime(b.createdAt) - safeGetTime(a.createdAt));
 
       setAttendanceRecords(filteredAttendance);
       setError('');

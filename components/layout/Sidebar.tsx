@@ -171,16 +171,17 @@ export default function Sidebar({ userRole, isOpen = false, onClose }: SidebarPr
       {/* Sidebar */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-50
-        w-64 bg-gray-800 text-white flex flex-col
+        w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col
         transform transition-transform duration-300 ease-in-out
+        border-r border-slate-700/50 shadow-2xl
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        <div className="p-6 border-b border-gray-700">
+        <div className="p-6 border-b border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-slate-900/50">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">HRMS</h1>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">HRMS</h1>
             <button
               onClick={onClose}
-              className="lg:hidden text-gray-400 hover:text-white p-2 rounded-md hover:bg-gray-700"
+              className="lg:hidden text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-700/50 transition-all duration-200"
               aria-label="Close menu"
             >
               ✕
@@ -194,24 +195,24 @@ export default function Sidebar({ userRole, isOpen = false, onClose }: SidebarPr
               key={item.href}
               href={item.href}
               onClick={onClose}
-              className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700 mb-2 transition-colors group"
+              className="flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-blue-600/20 hover:to-purple-600/20 mb-2 transition-all duration-300 group border border-transparent hover:border-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10"
             >
-              <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-sm font-bold group-hover:bg-white/20 transition-colors">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-lg flex items-center justify-center text-sm font-bold group-hover:from-blue-500/30 group-hover:to-purple-500/30 transition-all duration-300 border border-blue-400/20">
                 {item.icon}
               </div>
-              <span className="font-medium">{item.label}</span>
+              <span className="font-medium text-slate-200 group-hover:text-white transition-colors duration-200">{item.label}</span>
             </Link>
           ))}
         </nav>
 
-        <div className="p-4 border-t border-gray-700">
-          <button className="w-full flex items-center space-x-3 text-left px-4 py-3 rounded-lg hover:bg-gray-700 transition-colors">
-            <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-sm font-bold group-hover:bg-white/20 transition-colors">
+        <div className="p-4 border-t border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-slate-900/50">
+          <button className="w-full flex items-center space-x-3 text-left px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-red-600/20 hover:to-pink-600/20 transition-all duration-300 border border-transparent hover:border-red-500/20 hover:shadow-lg hover:shadow-red-500/10">
+            <div className="w-8 h-8 bg-gradient-to-br from-red-500/20 to-pink-500/20 rounded-lg flex items-center justify-center text-sm font-bold group-hover:from-red-500/30 group-hover:to-pink-500/30 transition-all duration-300 border border-red-400/20">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
             </div>
-            <span>Logout</span>
+            <span className="text-slate-200 hover:text-white transition-colors duration-200">Logout</span>
           </button>
         </div>
       </aside>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { AttendanceService } from '@/services/attendance.service';
 import { useAuthStore } from '@/store/auth.store';
 import { Attendance } from '@/types/attendance';
+import { safeGetTime } from '@/utils/date';
 import Loader from '@/components/ui/Loader';
 import { FirestoreDB } from '@/lib/firestore';
 import { where } from 'firebase/firestore';
@@ -25,7 +26,7 @@ export default function EmployeeAttendancePage() {
       [where('userId', '==', user.id)],
       (records) => {
         // Sort by date descending
-        records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        records.sort((a, b) => safeGetTime(b.date) - safeGetTime(a.date));
         setAttendanceRecords(records);
         setLoading(false);
         setError('');
