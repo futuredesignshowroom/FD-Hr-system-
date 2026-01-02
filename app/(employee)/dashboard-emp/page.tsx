@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { ReportsService } from '@/services/reports.service';
 import { AttendanceService } from '@/services/attendance.service';
@@ -40,7 +40,7 @@ export default function EmployeeDashboard() {
   const router = useRouter();
 
   // Function to fetch performance data
-  const fetchPerformance = async () => {
+  const fetchPerformance = useCallback(async () => {
     if (!user?.id) return;
 
     try {
@@ -57,7 +57,7 @@ export default function EmployeeDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     // Hydrate auth state once on mount
@@ -127,7 +127,7 @@ export default function EmployeeDashboard() {
     });
 
     return () => unsubscribe();
-  }, [user, router]); // Removed hydrate from dependencies
+  }, [user, router, fetchPerformance]); // Removed hydrate from dependencies
 
   const handleCheckIn = async () => {
     if (!user) return;

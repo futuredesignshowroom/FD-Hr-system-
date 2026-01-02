@@ -17,7 +17,6 @@ export default function EmployeeLeavesPage() {
   const { user } = useAuthStore();
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
-  const [policies, setPolicies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<{ startDate?: string; endDate?: string; reason?: string; balance?: string }>({});
@@ -98,23 +97,9 @@ export default function EmployeeLeavesPage() {
         console.error('Error listening to leave balances:', error);
       });
 
-      // Real-time listener for leave policies so employees see policy changes immediately
-      const policiesQuery = query(collection(db, 'leaveConfig'));
-      const unsubscribePolicies = onSnapshot(policiesQuery, (snapshot) => {
-        if (!snapshot.empty) {
-          const policiesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setPolicies(policiesData);
-        } else {
-          setPolicies([]);
-        }
-      }, (error) => {
-        console.error('Error listening to leave policies:', error);
-      });
-
       return () => {
         unsubscribeLeaves();
         unsubscribeBalances();
-        unsubscribePolicies();
       };
     }
 
