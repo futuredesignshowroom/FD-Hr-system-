@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SettingsService } from '@/services/settings.service';
 import { useAuthStore } from '@/store/auth.store';
-import { collection, onSnapshot, query } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import Loader from '@/components/ui/Loader';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
@@ -53,32 +51,6 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     loadSettings();
-
-    // Set up real-time listener for settings
-    if (!db) {
-      console.error('Firebase not initialized');
-      setLoading(false);
-      return;
-    }
-
-    const settingsQuery = query(collection(db, 'settings'));
-    const unsubscribe = onSnapshot(settingsQuery, (snapshot) => {
-      snapshot.docs.forEach(doc => {
-        if (doc.id === 'admin_settings') {
-          const data = doc.data();
-          setCurrency(data.currency || 'PKR');
-          setCompanyName(data.companyName || 'Your Company');
-          setWorkingDays(data.workingDays || 26);
-          setCasualLeaves(data.casualLeaves || 12);
-          setSickLeaves(data.sickLeaves || 12);
-          setEarnedLeaves(data.earnedLeaves || 30);
-        }
-      });
-    }, (error) => {
-      console.error('Error listening to settings:', error);
-    });
-
-    return () => unsubscribe();
   }, [loadSettings]);
 
   const handleSaveSettings = async () => {
@@ -97,6 +69,8 @@ export default function AdminSettingsPage() {
       });
 
       toast.show('Settings saved successfully!', { type: 'success', duration: 3000 });
+      // Reload settings to ensure state is updated
+      await loadSettings();
     } catch (error) {
       console.error('Error saving settings:', error);
       toast.show('Failed to save settings', { type: 'error' });
