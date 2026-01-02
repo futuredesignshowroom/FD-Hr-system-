@@ -8,6 +8,7 @@ import { Employee } from '@/types/employee';
 import Loader from '@/components/ui/Loader';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import Link from 'next/link';
 
 interface SalaryWithEmployee extends Salary {
   employee?: Employee;
@@ -274,6 +275,12 @@ export default function AdminPayrollPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex gap-2">
+                      <Link
+                        href={`/dashboard-admin/salary?userId=${salary.userId}`}
+                        className="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700"
+                      >
+                        Set Rules
+                      </Link>
                       {(!salary.paymentStatus || salary.paymentStatus === 'pending') && (
                         <>
                           <button
