@@ -46,14 +46,19 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Leave config - admins only
+    // Leave config - all authenticated users can read, only admins can write
     match /leaveConfig/{doc=**} {
-      allow read, write: if isAdmin();
+      allow read: if isAuth();
+      allow write: if isAdmin() || (
+        isAuth() &&
+        request.resource.data.keys().hasAll(['id', 'leaveType', 'allowedDaysPerYear']) &&
+        request.resource.data.id in ['sick', 'casual', 'earned', 'unpaid', 'maternity', 'paternity']
+      );
     }
 
     // Leave balances - allow users to read/write their own balance; admins can access all
-    match /leaveBalance/{userId} {
-      allow read, write: if isAuth() && (request.auth.uid == userId || isAdmin());
+    match /leaveBalance/{docId} {
+      allow read, write: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
     // Salary collection - users can read their own salary records; only admins can write

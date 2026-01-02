@@ -34,11 +34,20 @@ export default function EmployeeLeavesPage() {
 
     try {
       setLoading(true);
-      const [requests, balances, policies] = await Promise.all([
+      const [requests, balances, policiesInitial] = await Promise.all([
         LeaveService.getUserLeaveRequests(user.id),
         LeaveConfigService.getUserLeaveBalance(user.id),
         LeaveConfigService.getLeavePolicies()
       ]);
+
+      let policies = policiesInitial;
+
+      // Initialize default policies if none exist
+      if (policies.length === 0) {
+        await LeaveConfigService.initializeDefaultPolicies();
+        policies = await LeaveConfigService.getLeavePolicies();
+      }
+
       setLeaveRequests(requests);
 
       // If no balances exist, initialize them based on policies
@@ -65,9 +74,13 @@ export default function EmployeeLeavesPage() {
       }
     } catch (error) {
       console.error('Error loading leave data:', error);
-      // Try to initialize balances even if loading fails
+      // Try to initialize policies and balances even if loading fails
       try {
-        const policies = await LeaveConfigService.getLeavePolicies();
+        let policies = await LeaveConfigService.getLeavePolicies();
+        if (policies.length === 0) {
+          await LeaveConfigService.initializeDefaultPolicies();
+          policies = await LeaveConfigService.getLeavePolicies();
+        }
         if (policies.length > 0) {
           const currentYear = new Date().getFullYear();
           const newBalances: LeaveBalance[] = policies.map(policy => ({
