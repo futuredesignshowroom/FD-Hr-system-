@@ -157,7 +157,7 @@ export class AttendanceService {
         records.find((r) => {
           const recordDate = new Date(r.date);
           recordDate.setHours(0, 0, 0, 0);
-          return recordDate.getTime() === targetDate.getTime();
+          return recordDate.toDateString() === targetDate.toDateString();
         }) || null
       );
     } catch (error) {

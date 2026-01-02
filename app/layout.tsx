@@ -25,8 +25,19 @@ export default function RootLayout({
             {children}
           </main>
           <footer className="bg-gray-100 border-t border-gray-200 py-4 px-6 text-center text-sm text-gray-600">
+            <div className="flex items-center justify-center space-x-2">
+              <span>Powered by</span>
+              <a
+                href="https://digizaro.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+              >
+                Digizaro
+              </a>
+            </div>
             <div className="mt-1">
-              <span>HRMS System</span>
+              <span>Digital Solutions Agency</span>
             </div>
           </footer>
         </ToastProvider>

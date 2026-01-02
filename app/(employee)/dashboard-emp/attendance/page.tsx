@@ -211,26 +211,27 @@ export default function EmployeeAttendancePage() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Attendance</h1>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex gap-4">
+      <div className="bg-white rounded-lg shadow p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row gap-4">
           <button
             onClick={handleCheckIn}
             disabled={checkingIn}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 w-full sm:w-auto"
           >
             {checkingIn ? 'Checking In...' : 'Check In'}
           </button>
           <button
             onClick={handleCheckOut}
             disabled={checkingOut}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50 w-full sm:w-auto"
           >
             {checkingOut ? 'Checking Out...' : 'Check Out'}
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      {/* Desktop Table View */}
+      <div className="bg-white rounded-lg shadow overflow-hidden hidden md:block">
         <table className="w-full text-sm">
           <thead className="bg-gray-100">
             <tr>
@@ -298,6 +299,69 @@ export default function EmployeeAttendancePage() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-4">
+        {attendanceRecords.map((record) => (
+          <div key={record.id} className="bg-white rounded-lg shadow p-4">
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <h3 className="font-semibold text-lg">
+                  {new Date(record.date).toLocaleDateString()}
+                </h3>
+                <span className={`inline-block px-2 py-1 rounded text-xs mt-1 ${getStatusColor(record.status)}`}>
+                  {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
+                </span>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-gray-600 font-medium">Check In</p>
+                <p className="text-gray-900">{formatTime(record.checkInTime)}</p>
+              </div>
+              <div>
+                <p className="text-gray-600 font-medium">Check Out</p>
+                <p className="text-gray-900">{formatTime(record.checkOutTime)}</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-gray-600 font-medium mb-1">Locations</p>
+                <div className="flex flex-col space-y-1">
+                  {record.checkInLocation ? (
+                    <a
+                      href={getLocationLink(record.checkInLocation)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline text-xs"
+                    >
+                      📍 Check-in Location
+                    </a>
+                  ) : (
+                    <span className="text-gray-400 text-xs">📍 No check-in location</span>
+                  )}
+                  {record.checkOutLocation ? (
+                    <a
+                      href={getLocationLink(record.checkOutLocation)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline text-xs"
+                    >
+                      📍 Check-out Location
+                    </a>
+                  ) : (
+                    <span className="text-gray-400 text-xs">📍 No check-out location</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+        {attendanceRecords.length === 0 && (
+          <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+            No attendance records found.
+          </div>
+        )}
       </div>
     </div>
   );

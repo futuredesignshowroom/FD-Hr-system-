@@ -65,6 +65,30 @@ export default function EmployeeLeavesPage() {
       }
     } catch (error) {
       console.error('Error loading leave data:', error);
+      // Try to initialize balances even if loading fails
+      try {
+        const policies = await LeaveConfigService.getLeavePolicies();
+        if (policies.length > 0) {
+          const currentYear = new Date().getFullYear();
+          const newBalances: LeaveBalance[] = policies.map(policy => ({
+            userId: user.id,
+            leaveType: policy.leaveType as LeaveType,
+            totalAllowed: policy.allowedDaysPerYear,
+            used: 0,
+            remaining: policy.allowedDaysPerYear,
+            carryForward: 0,
+            year: currentYear,
+          }));
+
+          await Promise.all(
+            newBalances.map(balance => LeaveConfigService.setUserLeaveBalance(balance))
+          );
+
+          setLeaveBalances(newBalances);
+        }
+      } catch (initError) {
+        console.error('Error initializing leave balances:', initError);
+      }
     } finally {
       setLoading(false);
     }
@@ -230,17 +254,17 @@ export default function EmployeeLeavesPage() {
     }
 
     // Check leave balance
-    const defaultBalances = [
-      { leaveType: 'casual', remaining: 12, used: 0, totalAllowed: 12 },
-      { leaveType: 'sick', remaining: 12, used: 0, totalAllowed: 12 },
-      { leaveType: 'earned', remaining: 30, used: 0, totalAllowed: 30 },
-    ];
-    const allBalances = leaveBalances.length > 0 ? leaveBalances : defaultBalances;
-    const balance = allBalances.find(b => b.leaveType === formData.leaveType);
-    const requestedDays = calculateDays(start, end);
+    if (leaveBalances.length === 0) {
+      errors.balance = 'No leave types are configured. Please contact your administrator.';
+    } else {
+      const balance = leaveBalances.find(b => b.leaveType === formData.leaveType);
+      const requestedDays = calculateDays(start, end);
 
-    if (balance && balance.remaining < requestedDays) {
-      errors.balance = `Insufficient leave balance. You have ${balance.remaining} day(s) remaining for ${formData.leaveType} leave.`;
+      if (!balance) {
+        errors.balance = 'Selected leave type is not available.';
+      } else if (balance.remaining < requestedDays) {
+        errors.balance = `Insufficient leave balance. You have ${balance.remaining} day(s) remaining for ${formData.leaveType} leave.`;
+      }
     }
 
     if (Object.keys(errors).length > 0) {
@@ -304,10 +328,15 @@ export default function EmployeeLeavesPage() {
   };
 
   const getLeaveTypeOptions = () => {
-    if (leaveBalances.length === 0) {
-      // No leave balances available
+    if (loading) {
       return [
-        { value: '', label: 'No leave types configured', disabled: true },
+        { value: '', label: 'Loading leave types...', disabled: true },
+      ];
+    }
+
+    if (leaveBalances.length === 0) {
+      return [
+        { value: '', label: 'No leave types configured - contact administrator', disabled: true },
       ];
     }
 

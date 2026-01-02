@@ -3,6 +3,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/auth.store';
 
 interface SidebarProps {
   userRole: 'admin' | 'employee';
@@ -11,6 +13,13 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ userRole, isOpen = false, onClose }: SidebarProps) {
+  const router = useRouter();
+  const { logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
   const employeeMenu = [
     { 
       label: 'Dashboard', 
@@ -197,7 +206,10 @@ export default function Sidebar({ userRole, isOpen = false, onClose }: SidebarPr
         </nav>
 
         <div className="p-4 border-t border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-slate-900/50">
-          <button className="w-full flex items-center space-x-3 text-left px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-red-600/20 hover:to-pink-600/20 transition-all duration-300 border border-transparent hover:border-red-500/20 hover:shadow-lg hover:shadow-red-500/10">
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center space-x-3 text-left px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-red-600/20 hover:to-pink-600/20 transition-all duration-300 border border-transparent hover:border-red-500/20 hover:shadow-lg hover:shadow-red-500/10"
+          >
             <div className="w-8 h-8 bg-gradient-to-br from-red-500/20 to-pink-500/20 rounded-lg flex items-center justify-center text-sm font-bold group-hover:from-red-500/30 group-hover:to-pink-500/30 transition-all duration-300 border border-red-400/20">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
