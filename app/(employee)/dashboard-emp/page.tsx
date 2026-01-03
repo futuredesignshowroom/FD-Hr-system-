@@ -177,19 +177,11 @@ export default function EmployeeDashboard() {
 
     try {
       setCheckingOut(true);
-      // Find current active check-in record
-      const activeRecord = await AttendanceService.getCurrentCheckIn(user.id);
-
-      if (activeRecord && activeRecord.id && !activeRecord.checkOutTime) {
-        await AttendanceService.checkOut(activeRecord.id);
-        // Refresh performance data
-        if (performance) {
-          fetchPerformance();
-        }
-      } else if (activeRecord && activeRecord.checkOutTime) {
-        setError('Already checked out.');
-      } else {
-        setError('No active check-in found. Please check in first.');
+      // Check out freely - works independently of check-in
+      await AttendanceService.checkOut(user.id);
+      // Refresh performance data
+      if (performance) {
+        fetchPerformance();
       }
     } catch (error) {
       console.error('Check-out failed:', error);

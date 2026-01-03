@@ -6,7 +6,7 @@ import { AttendanceCalculator } from '@/lib/calculations';
 import { NotificationService } from './notification.service';
 import { EmployeeService } from './employee.service';
 import { Attendance, AttendanceRecord, AttendanceStatus } from '@/types/attendance';
-import { getCurrentLocation } from '@/utils/location';
+import { getCurrentLocation, LocationData } from '@/utils/location';
 
 export class AttendanceService {
   private static readonly COLLECTION = 'attendance';
@@ -30,7 +30,7 @@ export class AttendanceService {
       // But create a new record or update existing one?
 
       // Get current location - mandatory for check-in
-      const location = await getCurrentLocation();
+      const location: LocationData = await getCurrentLocation();
       if (!location) {
         throw new Error('Location access is required for check-in. Please enable location services and try again.');
       }
@@ -73,48 +73,74 @@ export class AttendanceService {
   }
 
   /**
-   * Record check-out
+   * Record check-out (works independently of check-in)
    */
-  static async checkOut(attendanceId: string): Promise<void> {
+  static async checkOut(userId: string): Promise<void> {
     try {
-      // Get the attendance record first to get user info
-      const attendance = await FirestoreDB.getDocument<Attendance>(this.COLLECTION, attendanceId);
-      if (!attendance) {
-        throw new Error('Attendance record not found');
-      }
-
-      // Check if already checked out
-      if (attendance.checkOutTime) {
-        throw new Error('Already checked out for today.');
-      }
-
       const now = new Date();
 
-      // Get current location - mandatory for check-out
+      // Get current location - required for check-out
       const location = await getCurrentLocation();
       if (!location) {
         throw new Error('Location access is required for check-out. Please enable location services and try again.');
       }
 
-      const updateData: any = {
-        checkOutTime: now,
-        updatedAt: now,
-      };
+      // Try to find existing check-in record for today
+      const todayAttendance = await this.getAttendanceByDate(userId, now);
 
-      // Only add location if we got it
-      updateData.checkOutLocation = location;
+      if (todayAttendance && todayAttendance.id) {
+        // If there's already a record for today, update it with check-out
+        if (todayAttendance.checkOutTime) {
+          throw new Error('Already checked out for today.');
+        }
 
-      await FirestoreDB.updateDocument(this.COLLECTION, attendanceId, updateData);
+        const updateData: any = {
+          checkOutTime: now,
+          checkOutLocation: location,
+          updatedAt: now,
+        };
 
-      // Create notification for admin
-      try {
-        const employee = await EmployeeService.getEmployeeProfile(attendance.userId);
-        const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee';
+        await FirestoreDB.updateDocument(this.COLLECTION, todayAttendance.id, updateData);
 
-        await NotificationService.createAttendanceNotification(attendance, employeeName, 'checkout');
-      } catch (notificationError) {
-        console.error('Error creating check-out notification:', notificationError);
-        // Don't fail the check-out if notification fails
+        // Create notification for admin
+        try {
+          const employee = await EmployeeService.getEmployeeProfile(userId);
+          const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee';
+
+          await NotificationService.createAttendanceNotification(todayAttendance, employeeName, 'checkout');
+        } catch (notificationError) {
+          console.error('Error creating check-out notification:', notificationError);
+          // Don't fail the check-out if notification fails
+        }
+      } else {
+        // If no record exists for today, create a new one with only check-out
+        const attendance: Attendance = {
+          id: '',
+          userId,
+          date: now,
+          checkOutTime: now,
+          checkOutLocation: location,
+          status: 'present', // Assume present if checking out
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        const docRef = await FirestoreDB.addDocument(
+          this.COLLECTION,
+          attendance
+        );
+        attendance.id = docRef.id;
+
+        // Create notification for admin
+        try {
+          const employee = await EmployeeService.getEmployeeProfile(userId);
+          const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee';
+
+          await NotificationService.createAttendanceNotification(attendance, employeeName, 'checkout');
+        } catch (notificationError) {
+          console.error('Error creating check-out notification:', notificationError);
+          // Don't fail the check-out if notification fails
+        }
       }
     } catch (error) {
       console.error('Error checking out:', error);
@@ -130,12 +156,12 @@ export class AttendanceService {
     date: Date
   ): Promise<Attendance | null> {
     try {
-      // Get recent attendance records for the user (ordered by date desc, limit 30)
+      // Get recent attendance records for the user (ordered by createdAt desc, limit 30)
       const records = await FirestoreDB.queryCollection<Attendance>(
         this.COLLECTION,
         [
           where('userId', '==', userId),
-          orderBy('date', 'desc'),
+          orderBy('createdAt', 'desc'),
           limit(30)
         ]
       );
@@ -167,7 +193,7 @@ export class AttendanceService {
         this.COLLECTION,
         [
           where('userId', '==', userId),
-          orderBy('date', 'desc'),
+          orderBy('createdAt', 'desc'),
           limit(5) // Check last 5 records
         ]
       );
