@@ -20,10 +20,10 @@ export class AttendanceService {
       const today = new Date(now);
       today.setHours(0, 0, 0, 0);
 
-      // Check if already checked in today
-      const existingRecord = await this.getTodaysAttendance(userId);
+      // Check if already checked in (any active check-in)
+      const existingRecord = await this.getCurrentCheckIn(userId);
       if (existingRecord) {
-        throw new Error('Already checked in for today. Please check out first.');
+        throw new Error('Already checked in. Please check out first.');
       }
 
       // If already checked in and checked out, allow re-check-in (maybe they forgot to check out)
@@ -158,29 +158,28 @@ export class AttendanceService {
     }
   }
   /**
-   * Get today's attendance record (simple - one per day)
+   * Get the current active check-in record (most recent without check-out)
    */
-  static async getTodaysAttendance(userId: string): Promise<Attendance | null> {
+  static async getCurrentCheckIn(userId: string): Promise<Attendance | null> {
     try {
-      // Get today's date at start of day
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      // Query for attendance records today
+      // Get recent records to find the active check-in
       const records = await FirestoreDB.queryCollection<Attendance>(
         this.COLLECTION,
         [
           where('userId', '==', userId),
-          where('date', '>=', today),
-          where('date', '<', tomorrow)
+          orderBy('date', 'desc'),
+          limit(5) // Check last 5 records
         ]
       );
 
-      return records.length > 0 ? records[0] : null;
+      // Find the most recent record that has check-in but no check-out
+      const activeRecord = records.find((record) =>
+        record.checkInTime && !record.checkOutTime
+      );
+
+      return activeRecord || null;
     } catch (error) {
-      console.error('Error getting today\'s attendance:', error);
+      console.error('Error getting current check-in:', error);
       return null;
     }
   }
