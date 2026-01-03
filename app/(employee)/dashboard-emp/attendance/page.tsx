@@ -142,26 +142,29 @@ export default function EmployeeAttendancePage() {
 
     try {
       setCheckingOut(true);
-      // Find today's attendance record from database
+      console.log('Starting check-out process...');
+
+      // Check if already checked out today
       const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
       const todayRecord = await AttendanceService.getAttendanceByDate(user.id, today);
 
-      if (todayRecord && todayRecord.id && !todayRecord.checkOutTime) {
-        await AttendanceService.checkOut(todayRecord.id);
-        alert('Successfully checked out!');
-      } else if (todayRecord && todayRecord.checkOutTime) {
+      if (todayRecord && todayRecord.checkOutTime) {
         alert('Already checked out for today.');
-      } else {
-        alert('No check-in record found for today.');
+        return;
       }
+
+      // Perform check-out (works independently of check-in)
+      await AttendanceService.checkOut(user.id);
+      console.log('Check-out successful');
+      alert('Successfully checked out!');
     } catch (err: any) {
-      console.error('Error checking out:', err);
+      console.error('Check-out error:', err);
       if (err.message?.includes('Location')) {
         alert('Check-out successful, but location could not be captured. Please enable location permissions for better tracking.');
+      } else if (err.message?.includes('Already checked out')) {
+        alert('Already checked out for today.');
       } else {
-        alert('Failed to check out. Please try again.');
+        alert(`Failed to check out: ${err.message || 'Please try again.'}`);
       }
     } finally {
       setCheckingOut(false);
