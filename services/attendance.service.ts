@@ -21,7 +21,7 @@ export class AttendanceService {
       today.setHours(0, 0, 0, 0);
 
       // Check if already checked in today
-      const existingAttendance = await this.getAttendanceByDate(userId, today);
+      const existingAttendance = await this.getTodaysCheckIn(userId);
       if (existingAttendance && existingAttendance.checkInTime && !existingAttendance.checkOutTime) {
         throw new Error('Already checked in for today. Please check out first if you want to check in again.');
       }
@@ -154,6 +154,43 @@ export class AttendanceService {
       return matchingRecord || null;
     } catch (error) {
       console.error('Error getting attendance by date:', error);
+      return null;
+    }
+  }
+  static async getTodaysCheckIn(userId: string): Promise<Attendance | null> {
+    try {
+      // Get recent attendance records for the user (ordered by date desc, limit 10)
+      const records = await FirestoreDB.queryCollection<Attendance>(
+        this.COLLECTION,
+        [
+          where('userId', '==', userId),
+          orderBy('date', 'desc'),
+          limit(10)
+        ]
+      );
+
+      // Find the most recent record that has check-in but no check-out
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toDateString();
+
+      // First, try to find today's record
+      const todaysRecord = records.find((record) => {
+        const recordDate = new Date(record.date);
+        recordDate.setHours(0, 0, 0, 0);
+        return recordDate.toDateString() === todayStr && record.checkInTime && !record.checkOutTime;
+      });
+
+      if (todaysRecord) {
+        return todaysRecord;
+      }
+
+      // If no today's record found, return the most recent unchecked-out record
+      // (in case they checked in yesterday and forgot to check out)
+      const recentRecord = records.find((record) => record.checkInTime && !record.checkOutTime);
+      return recentRecord || null;
+    } catch (error) {
+      console.error('Error getting today\'s check-in:', error);
       return null;
     }
   }
