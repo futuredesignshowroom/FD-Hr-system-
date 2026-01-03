@@ -698,4 +698,71 @@ export class ReportsService {
       return [];
     }
   }
+
+  /**
+   * Get monthly attendance summary for all employees
+   */
+  static async getAllEmployeesMonthlyAttendance(year: number, month: number): Promise<any[]> {
+    const firestore = ensureDb();
+    try {
+      // Get all employees
+      const employeesRef = collection(firestore, 'users');
+      const employeesSnapshot = await getDocs(
+        query(employeesRef, where('role', '==', 'employee'))
+      );
+
+      const employees = employeesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        firstName: doc.data().firstName || '',
+        lastName: doc.data().lastName || '',
+        email: doc.data().email || '',
+        department: doc.data().department || 'Unassigned'
+      }));
+
+      // Get attendance records for the month
+      const monthStart = new Date(year, month - 1, 1).toISOString().split('T')[0];
+      const monthEnd = new Date(year, month, 0).toISOString().split('T')[0];
+
+      const attendanceRef = collection(firestore, 'attendance');
+      const monthAttendance = await getDocs(
+        query(
+          attendanceRef,
+          where('date', '>=', monthStart),
+          where('date', '<=', monthEnd)
+        )
+      );
+
+      // Calculate attendance for each employee
+      const employeeAttendance = employees.map(employee => {
+        const employeeRecords = monthAttendance.docs.filter(doc => 
+          doc.data().userId === employee.id
+        );
+
+        const presentDays = employeeRecords.filter(doc => 
+          doc.data().status === 'present'
+        ).length;
+
+        const totalWorkingDays = new Date(year, month, 0).getDate(); // Days in month
+        const attendancePercentage = totalWorkingDays > 0 
+          ? Math.round((presentDays / totalWorkingDays) * 100) 
+          : 0;
+
+        return {
+          employeeId: employee.id,
+          employeeName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown',
+          employeeEmail: employee.email || '',
+          department: employee.department || 'Unassigned',
+          presentDays,
+          totalWorkingDays,
+          attendancePercentage,
+          records: employeeRecords.length
+        };
+      });
+
+      return employeeAttendance.sort((a, b) => b.attendancePercentage - a.attendancePercentage);
+    } catch (error) {
+      console.error('Error getting all employees monthly attendance:', error);
+      return [];
+    }
+  }
 }
