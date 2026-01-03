@@ -6,7 +6,7 @@ import { AttendanceCalculator } from '@/lib/calculations';
 import { NotificationService } from './notification.service';
 import { EmployeeService } from './employee.service';
 import { Attendance, AttendanceRecord, AttendanceStatus } from '@/types/attendance';
-import { getCurrentLocation } from '@/utils/location';
+import { getCurrentLocation, LocationData } from '@/utils/location';
 
 export class AttendanceService {
   private static readonly COLLECTION = 'attendance';
@@ -90,10 +90,13 @@ export class AttendanceService {
 
       const now = new Date();
 
-      // Get current location - mandatory for check-out
-      const location = await getCurrentLocation();
-      if (!location) {
-        throw new Error('Location access is required for check-out. Please enable location services and try again.');
+      // Get current location - optional for check-out (unlike check-in)
+      let location: LocationData | undefined;
+      try {
+        location = await getCurrentLocation();
+      } catch (locationError) {
+        console.warn('Could not get location for check-out:', locationError);
+        // Continue without location for check-out
       }
 
       const updateData: any = {
@@ -102,7 +105,9 @@ export class AttendanceService {
       };
 
       // Only add location if we got it
-      updateData.checkOutLocation = location;
+      if (location) {
+        updateData.checkOutLocation = location;
+      }
 
       await FirestoreDB.updateDocument(this.COLLECTION, attendanceId, updateData);
 
