@@ -177,8 +177,8 @@ export default function EmployeeDashboard() {
 
     try {
       setCheckingOut(true);
-      // Find today's check-in record from database
-      const todayRecord = await AttendanceService.getTodaysCheckIn(user.id);
+      // Find today's attendance record
+      const todayRecord = await AttendanceService.getTodaysAttendance(user.id);
 
       if (todayRecord && todayRecord.id && !todayRecord.checkOutTime) {
         await AttendanceService.checkOut(todayRecord.id);

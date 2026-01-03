@@ -21,9 +21,9 @@ export class AttendanceService {
       today.setHours(0, 0, 0, 0);
 
       // Check if already checked in today
-      const existingAttendance = await this.getTodaysCheckIn(userId);
-      if (existingAttendance && existingAttendance.checkInTime && !existingAttendance.checkOutTime) {
-        throw new Error('Already checked in for today. Please check out first if you want to check in again.');
+      const existingRecord = await this.getTodaysAttendance(userId);
+      if (existingRecord) {
+        throw new Error('Already checked in for today. Please check out first.');
       }
 
       // If already checked in and checked out, allow re-check-in (maybe they forgot to check out)
@@ -157,40 +157,30 @@ export class AttendanceService {
       return null;
     }
   }
-  static async getTodaysCheckIn(userId: string): Promise<Attendance | null> {
+  /**
+   * Get today's attendance record (simple - one per day)
+   */
+  static async getTodaysAttendance(userId: string): Promise<Attendance | null> {
     try {
-      // Get recent attendance records for the user (ordered by date desc, limit 10)
+      // Get today's date at start of day
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      // Query for attendance records today
       const records = await FirestoreDB.queryCollection<Attendance>(
         this.COLLECTION,
         [
           where('userId', '==', userId),
-          orderBy('date', 'desc'),
-          limit(10)
+          where('date', '>=', today),
+          where('date', '<', tomorrow)
         ]
       );
 
-      // Find the most recent record that has check-in but no check-out
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayStr = today.toDateString();
-
-      // First, try to find today's record
-      const todaysRecord = records.find((record) => {
-        const recordDate = new Date(record.date);
-        recordDate.setHours(0, 0, 0, 0);
-        return recordDate.toDateString() === todayStr && record.checkInTime && !record.checkOutTime;
-      });
-
-      if (todaysRecord) {
-        return todaysRecord;
-      }
-
-      // If no today's record found, return the most recent unchecked-out record
-      // (in case they checked in yesterday and forgot to check out)
-      const recentRecord = records.find((record) => record.checkInTime && !record.checkOutTime);
-      return recentRecord || null;
+      return records.length > 0 ? records[0] : null;
     } catch (error) {
-      console.error('Error getting today\'s check-in:', error);
+      console.error('Error getting today\'s attendance:', error);
       return null;
     }
   }
