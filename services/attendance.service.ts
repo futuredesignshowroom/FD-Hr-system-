@@ -1,6 +1,6 @@
 // services/attendance.service.ts - Attendance Management Service
 
-import { where } from 'firebase/firestore';
+import { where, orderBy, limit } from 'firebase/firestore';
 import { FirestoreDB } from '@/lib/firestore';
 import { AttendanceCalculator } from '@/lib/calculations';
 import { NotificationService } from './notification.service';
@@ -130,46 +130,31 @@ export class AttendanceService {
     date: Date
   ): Promise<Attendance | null> {
     try {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
-
+      // Get recent attendance records for the user (ordered by date desc, limit 30)
       const records = await FirestoreDB.queryCollection<Attendance>(
         this.COLLECTION,
         [
           where('userId', '==', userId),
-          where('date', '>=', startOfDay),
-          where('date', '<=', endOfDay)
+          orderBy('date', 'desc'),
+          limit(30)
         ]
       );
 
-      return records.length > 0 ? records[0] : null;
+      // Find the record for the specific date
+      const targetDate = new Date(date);
+      targetDate.setHours(0, 0, 0, 0);
+      const targetDateStr = targetDate.toDateString();
+
+      const matchingRecord = records.find((record) => {
+        const recordDate = new Date(record.date);
+        recordDate.setHours(0, 0, 0, 0);
+        return recordDate.toDateString() === targetDateStr;
+      });
+
+      return matchingRecord || null;
     } catch (error) {
       console.error('Error getting attendance by date:', error);
-      // Fallback to the old method if the query fails
-      try {
-        const allRecords = await FirestoreDB.queryCollection<Attendance>(
-          this.COLLECTION,
-          [where('userId', '==', userId)]
-        );
-
-        const targetDate = new Date(date);
-        targetDate.setHours(0, 0, 0, 0);
-        const targetDateStr = targetDate.toDateString();
-
-        return (
-          allRecords.find((r) => {
-            const recordDate = new Date(r.date);
-            recordDate.setHours(0, 0, 0, 0);
-            return recordDate.toDateString() === targetDateStr;
-          }) || null
-        );
-      } catch (fallbackError) {
-        console.error('Fallback query also failed:', fallbackError);
-        throw error;
-      }
+      return null;
     }
   }
 
