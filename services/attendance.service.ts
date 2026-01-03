@@ -20,10 +20,10 @@ export class AttendanceService {
       const today = new Date(now);
       today.setHours(0, 0, 0, 0);
 
-      // Check if already checked in (any active check-in)
-      const existingRecord = await this.getCurrentCheckIn(userId);
-      if (existingRecord) {
-        throw new Error('Already checked in. Please check out first.');
+      // Check if already checked in today (one check-in per day)
+      const todayAttendance = await this.getAttendanceByDate(userId, now);
+      if (todayAttendance) {
+        throw new Error('Already checked in for today. One check-in per day allowed.');
       }
 
       // If already checked in and checked out, allow re-check-in (maybe they forgot to check out)
@@ -73,14 +73,14 @@ export class AttendanceService {
   }
 
   /**
-   * Record check-out (works independently of check-in)
+   * Record check-out (requires check-in record to exist, but independent of check-in status)
    */
   static async checkOut(userId: string): Promise<void> {
     try {
       const now = new Date();
 
       // Get current location - required for check-out
-      const location = await getCurrentLocation();
+      const location: LocationData = await getCurrentLocation();
       if (!location) {
         throw new Error('Location access is required for check-out. Please enable location services and try again.');
       }
@@ -113,34 +113,8 @@ export class AttendanceService {
           // Don't fail the check-out if notification fails
         }
       } else {
-        // If no record exists for today, create a new one with only check-out
-        const attendance: Attendance = {
-          id: '',
-          userId,
-          date: now,
-          checkOutTime: now,
-          checkOutLocation: location,
-          status: 'present', // Assume present if checking out
-          createdAt: now,
-          updatedAt: now,
-        };
-
-        const docRef = await FirestoreDB.addDocument(
-          this.COLLECTION,
-          attendance
-        );
-        attendance.id = docRef.id;
-
-        // Create notification for admin
-        try {
-          const employee = await EmployeeService.getEmployeeProfile(userId);
-          const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee';
-
-          await NotificationService.createAttendanceNotification(attendance, employeeName, 'checkout');
-        } catch (notificationError) {
-          console.error('Error creating check-out notification:', notificationError);
-          // Don't fail the check-out if notification fails
-        }
+        // No check-in record found for today - require check-in first
+        throw new Error('No check-in record found for today. Please check in first.');
       }
     } catch (error) {
       console.error('Error checking out:', error);
