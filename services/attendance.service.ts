@@ -73,7 +73,7 @@ export class AttendanceService {
   }
 
   /**
-   * Record check-out (requires check-in record to exist, but independent of check-in status)
+   * Record check-out (works completely independently of check-in)
    */
   static async checkOut(userId: string): Promise<void> {
     try {
@@ -113,8 +113,34 @@ export class AttendanceService {
           // Don't fail the check-out if notification fails
         }
       } else {
-        // No check-in record found for today - require check-in first
-        throw new Error('No check-in record found for today. Please check in first.');
+        // If no record exists for today, create a new one with only check-out
+        const attendance: Attendance = {
+          id: '',
+          userId,
+          date: now,
+          checkOutTime: now,
+          checkOutLocation: location,
+          status: 'present', // Assume present if checking out
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        const docRef = await FirestoreDB.addDocument(
+          this.COLLECTION,
+          attendance
+        );
+        attendance.id = docRef.id;
+
+        // Create notification for admin
+        try {
+          const employee = await EmployeeService.getEmployeeProfile(userId);
+          const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee';
+
+          await NotificationService.createAttendanceNotification(attendance, employeeName, 'checkout');
+        } catch (notificationError) {
+          console.error('Error creating check-out notification:', notificationError);
+          // Don't fail the check-out if notification fails
+        }
       }
     } catch (error) {
       console.error('Error checking out:', error);
