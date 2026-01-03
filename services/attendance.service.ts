@@ -29,10 +29,13 @@ export class AttendanceService {
       // If already checked in and checked out, allow re-check-in (maybe they forgot to check out)
       // But create a new record or update existing one?
 
-      // Get current location - mandatory for check-in
-      const location = await getCurrentLocation();
-      if (!location) {
-        throw new Error('Location access is required for check-in. Please enable location services and try again.');
+      // Get current location - try to capture but don't fail if not available
+      let location: LocationData | undefined;
+      try {
+        location = await getCurrentLocation();
+      } catch (locationError) {
+        console.warn('Could not get location for check-in:', locationError);
+        // Continue without location - check-in should work even without location
       }
 
       const attendance: Attendance = {
@@ -46,7 +49,9 @@ export class AttendanceService {
       };
 
       // Only add location if we got it
-      attendance.checkInLocation = location;
+      if (location) {
+        attendance.checkInLocation = location;
+      }
 
       const docRef = await FirestoreDB.addDocument(
         this.COLLECTION,
