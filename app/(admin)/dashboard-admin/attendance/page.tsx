@@ -15,6 +15,12 @@ import { ReportsService } from '@/services/reports.service';
 interface AttendanceWithEmployee extends Attendance {
   employeeName: string;
   employeeEmail: string;
+  employeeId: string;
+  department: string;
+  position: string;
+  phone?: string;
+  employeeStatus: 'active' | 'inactive' | 'on-leave' | 'terminated';
+  avatar?: string;
 }
 
 interface MonthlyAttendanceEmployee {
@@ -22,10 +28,12 @@ interface MonthlyAttendanceEmployee {
   employeeName: string;
   employeeEmail: string;
   department: string;
+  position: string;
   presentDays: number;
   totalWorkingDays: number;
   attendancePercentage: number;
   records: number;
+  status: 'active' | 'inactive' | 'on-leave' | 'terminated';
 }
 
 export default function AdminAttendancePage() {
@@ -39,6 +47,9 @@ export default function AdminAttendancePage() {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   const loadData = useCallback(async () => {
     try {
@@ -51,7 +62,7 @@ export default function AdminAttendancePage() {
       const allEmployees: Employee[] = await EmployeeService.getAllEmployees();
 
       // Filter attendance by selected date and add employee info
-      const filteredAttendance = allAttendance
+      let filteredAttendance = allAttendance
         .filter(record => {
           const recordDate = safeDateToISOString(record.date);
           return recordDate === selectedDate;
@@ -62,9 +73,36 @@ export default function AdminAttendancePage() {
             ...record,
             employeeName: ((employee?.firstName || '') + ' ' + (employee?.lastName || '')).trim() || 'Unknown',
             employeeEmail: employee?.email || 'Unknown',
+            employeeId: employee?.employeeId || 'N/A',
+            department: employee?.department || 'N/A',
+            position: employee?.position || 'N/A',
+            phone: employee?.phone,
+            employeeStatus: employee?.status || 'inactive',
+            avatar: employee?.avatar,
           };
         })
         .sort((a, b) => safeGetTime(b.createdAt) - safeGetTime(a.createdAt));
+
+      // Apply search and filter
+      if (searchTerm) {
+        filteredAttendance = filteredAttendance.filter(record =>
+          record.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          record.employeeEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          record.employeeId.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }
+
+      if (departmentFilter) {
+        filteredAttendance = filteredAttendance.filter(record =>
+          record.department === departmentFilter
+        );
+      }
+
+      if (statusFilter) {
+        filteredAttendance = filteredAttendance.filter(record =>
+          record.employeeStatus === statusFilter
+        );
+      }
 
       setAttendanceRecords(filteredAttendance);
       setError('');
@@ -74,7 +112,7 @@ export default function AdminAttendancePage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate]);
+  }, [selectedDate, searchTerm, departmentFilter, statusFilter]);
 
   const loadMonthlyData = useCallback(async () => {
     try {
@@ -98,6 +136,18 @@ export default function AdminAttendancePage() {
       return;
     }
 
+    // Real-time listener for employees
+    const employeeQuery = query(collection(db, 'employees'));
+    const unsubscribeEmployees = onSnapshot(employeeQuery, (snapshot) => {
+      const allEmployees = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...convertFirestoreDates(doc.data())
+      })) as Employee[];
+      setEmployees(allEmployees);
+    }, (error) => {
+      console.error('Error listening to employees:', error);
+    });
+
     // Real-time listener for attendance records
     const attendanceQuery = query(collection(db, 'attendance'));
     const unsubscribeAttendance = onSnapshot(attendanceQuery, (snapshot) => {
@@ -107,7 +157,7 @@ export default function AdminAttendancePage() {
       })) as Attendance[];
 
       // Filter attendance by selected date and add employee info
-      const filteredAttendance = allAttendance
+      let filteredAttendance = allAttendance
         .filter(record => {
           const recordDate = safeDateToISOString(record.date);
           return recordDate === selectedDate;
@@ -118,9 +168,36 @@ export default function AdminAttendancePage() {
             ...record,
             employeeName: ((employee?.firstName || '') + ' ' + (employee?.lastName || '')).trim() || 'Unknown',
             employeeEmail: employee?.email || 'Unknown',
+            employeeId: employee?.employeeId || 'N/A',
+            department: employee?.department || 'N/A',
+            position: employee?.position || 'N/A',
+            phone: employee?.phone,
+            employeeStatus: employee?.status || 'inactive',
+            avatar: employee?.avatar,
           };
         })
         .sort((a, b) => safeGetTime(b.createdAt) - safeGetTime(a.createdAt));
+
+      // Apply search and filter
+      if (searchTerm) {
+        filteredAttendance = filteredAttendance.filter(record =>
+          record.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          record.employeeEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          record.employeeId.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }
+
+      if (departmentFilter) {
+        filteredAttendance = filteredAttendance.filter(record =>
+          record.department === departmentFilter
+        );
+      }
+
+      if (statusFilter) {
+        filteredAttendance = filteredAttendance.filter(record =>
+          record.employeeStatus === statusFilter
+        );
+      }
 
       setAttendanceRecords(filteredAttendance);
       setLoading(false);
@@ -131,8 +208,11 @@ export default function AdminAttendancePage() {
       setLoading(false);
     });
 
-    return () => unsubscribeAttendance();
-  }, [selectedDate, employees]);
+    return () => {
+      unsubscribeEmployees();
+      unsubscribeAttendance();
+    };
+  }, [selectedDate, employees, searchTerm, departmentFilter, statusFilter]);
 
   useEffect(() => {
     if (viewMode === 'monthly') {
@@ -146,6 +226,30 @@ export default function AdminAttendancePage() {
       setEmployees(allEmployees);
     } catch (err) {
       console.error('Error loading employees:', err);
+    }
+  };
+
+  const getUniqueDepartments = () => {
+    const departments = employees.map(emp => emp.department).filter(Boolean);
+    return [...new Set(departments)];
+  };
+
+  const getUniqueStatuses = () => {
+    return ['active', 'inactive', 'on-leave', 'terminated'];
+  };
+
+  const getStatusBadgeColor = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'bg-green-100 text-green-800';
+      case 'inactive':
+        return 'bg-gray-100 text-gray-800';
+      case 'on-leave':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'terminated':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -244,17 +348,63 @@ export default function AdminAttendancePage() {
 
       {viewMode === 'daily' ? (
         <>
-          <div className="flex justify-between items-center">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Select Date
-              </label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="border border-gray-300 rounded px-3 py-2"
-              />
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Select Date
+                </label>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="border border-gray-300 rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Search Employee
+                </label>
+                <input
+                  type="text"
+                  placeholder="Name, email, or ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="border border-gray-300 rounded px-3 py-2 w-full min-w-[200px]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Department
+                </label>
+                <select
+                  value={departmentFilter}
+                  onChange={(e) => setDepartmentFilter(e.target.value)}
+                  className="border border-gray-300 rounded px-3 py-2"
+                >
+                  <option value="">All Departments</option>
+                  {getUniqueDepartments().map(dept => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="border border-gray-300 rounded px-3 py-2"
+                >
+                  <option value="">All Statuses</option>
+                  {getUniqueStatuses().map(status => (
+                    <option key={status} value={status}>
+                      {status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <button
               onClick={loadData}
@@ -299,11 +449,13 @@ export default function AdminAttendancePage() {
               <thead className="bg-gray-100">
                 <tr>
                   <th className="px-6 py-3 text-left font-semibold">Employee</th>
+                  <th className="px-6 py-3 text-left font-semibold">Department</th>
+                  <th className="px-6 py-3 text-left font-semibold">Position</th>
+                  <th className="px-6 py-3 text-left font-semibold">Status</th>
                   <th className="px-6 py-3 text-left font-semibold">Check In</th>
                   <th className="px-6 py-3 text-left font-semibold">Check Out</th>
-                  <th className="px-6 py-3 text-left font-semibold">Check In Location</th>
-                  <th className="px-6 py-3 text-left font-semibold">Check Out Location</th>
-                  <th className="px-6 py-3 text-left font-semibold">Status</th>
+                  <th className="px-6 py-3 text-left font-semibold">Location</th>
+                  <th className="px-6 py-3 text-left font-semibold">Attendance</th>
                   <th className="px-6 py-3 text-left font-semibold">Actions</th>
                 </tr>
               </thead>
@@ -311,40 +463,70 @@ export default function AdminAttendancePage() {
                 {attendanceRecords.map((record) => (
                   <tr key={record.id} className="border-b hover:bg-gray-50">
                     <td className="px-6 py-4">
-                      <div>
-                        <div className="font-medium">{record.employeeName}</div>
-                        <div className="text-gray-500 text-xs">{record.employeeEmail}</div>
+                      <div className="flex items-center space-x-3">
+                        {record.avatar ? (
+                          <img
+                            src={record.avatar}
+                            alt={record.employeeName}
+                            className="w-8 h-8 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                            <span className="text-xs font-medium text-gray-600">
+                              {record.employeeName.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-medium">{record.employeeName}</div>
+                          <div className="text-gray-500 text-xs">{record.employeeEmail}</div>
+                          <div className="text-gray-400 text-xs">ID: {record.employeeId}</div>
+                          {record.phone && (
+                            <div className="text-gray-400 text-xs">📞 {record.phone}</div>
+                          )}
+                        </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                        {record.department}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm">{record.position}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded text-xs ${getStatusBadgeColor(record.employeeStatus)}`}>
+                        {record.employeeStatus.charAt(0).toUpperCase() + record.employeeStatus.slice(1).replace('-', ' ')}
+                      </span>
                     </td>
                     <td className="px-6 py-4">{formatTime(record.checkInTime)}</td>
                     <td className="px-6 py-4">{formatTime(record.checkOutTime)}</td>
                     <td className="px-6 py-4">
-                      {record.checkInLocation ? (
-                        <a
-                          href={getLocationLink(record.checkInLocation)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 underline text-xs"
-                        >
-                          View Location
-                        </a>
-                      ) : (
-                        <span className="text-gray-400 text-xs">No location</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {record.checkOutLocation ? (
-                        <a
-                          href={getLocationLink(record.checkOutLocation)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 underline text-xs"
-                        >
-                          View Location
-                        </a>
-                      ) : (
-                        <span className="text-gray-400 text-xs">No location</span>
-                      )}
+                      <div className="space-y-1">
+                        {record.checkInLocation ? (
+                          <a
+                            href={getLocationLink(record.checkInLocation)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline text-xs block"
+                          >
+                            Check-in Location
+                          </a>
+                        ) : (
+                          <span className="text-gray-400 text-xs">No check-in location</span>
+                        )}
+                        {record.checkOutLocation ? (
+                          <a
+                            href={getLocationLink(record.checkOutLocation)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline text-xs block"
+                          >
+                            Check-out Location
+                          </a>
+                        ) : (
+                          <span className="text-gray-400 text-xs">No check-out location</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded text-xs ${getStatusColor(record.status)}`}>
@@ -369,8 +551,11 @@ export default function AdminAttendancePage() {
                 ))}
                 {attendanceRecords.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
                       No attendance records found for {new Date(selectedDate).toLocaleDateString()}.
+                      {searchTerm && ` Matching "${searchTerm}"`}
+                      {departmentFilter && ` in ${departmentFilter}`}
+                      {statusFilter && ` with status ${statusFilter}`}
                     </td>
                   </tr>
                 )}
@@ -436,6 +621,8 @@ export default function AdminAttendancePage() {
                 <tr>
                   <th className="px-6 py-3 text-left font-semibold">Employee</th>
                   <th className="px-6 py-3 text-left font-semibold">Department</th>
+                  <th className="px-6 py-3 text-left font-semibold">Position</th>
+                  <th className="px-6 py-3 text-left font-semibold">Status</th>
                   <th className="px-6 py-3 text-left font-semibold">Present Days</th>
                   <th className="px-6 py-3 text-left font-semibold">Total Working Days</th>
                   <th className="px-6 py-3 text-left font-semibold">Attendance %</th>
@@ -454,6 +641,12 @@ export default function AdminAttendancePage() {
                     <td className="px-6 py-4">
                       <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
                         {employee.department}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm">{employee.position}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded text-xs ${getStatusBadgeColor(employee.status)}`}>
+                        {employee.status.charAt(0).toUpperCase() + employee.status.slice(1).replace('-', ' ')}
                       </span>
                     </td>
                     <td className="px-6 py-4 font-semibold text-green-600">
@@ -478,7 +671,7 @@ export default function AdminAttendancePage() {
                 ))}
                 {monthlyAttendance.length === 0 && !monthlyLoading && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                       No attendance data found for {new Date(currentYear, currentMonth - 1, 1).toLocaleString('default', { month: 'long' })} {currentYear}.
                     </td>
                   </tr>

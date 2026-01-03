@@ -706,17 +706,19 @@ export class ReportsService {
     const firestore = ensureDb();
     try {
       // Get all employees
-      const employeesRef = collection(firestore, 'users');
-      const employeesSnapshot = await getDocs(
-        query(employeesRef, where('role', '==', 'employee'))
-      );
+      const employeesRef = collection(firestore, 'employees');
+      const employeesSnapshot = await getDocs(employeesRef);
 
       const employees = employeesSnapshot.docs.map(doc => ({
         id: doc.id,
+        userId: doc.data().userId,
+        employeeId: doc.data().employeeId || 'N/A',
         firstName: doc.data().firstName || '',
         lastName: doc.data().lastName || '',
         email: doc.data().email || '',
-        department: doc.data().department || 'Unassigned'
+        department: doc.data().department || 'Unassigned',
+        position: doc.data().position || 'N/A',
+        status: doc.data().status || 'inactive'
       }));
 
       // Get attendance records for the month
@@ -734,24 +736,26 @@ export class ReportsService {
 
       // Calculate attendance for each employee
       const employeeAttendance = employees.map(employee => {
-        const employeeRecords = monthAttendance.docs.filter(doc => 
-          doc.data().userId === employee.id
+        const employeeRecords = monthAttendance.docs.filter(doc =>
+          doc.data().userId === employee.userId
         );
 
-        const presentDays = employeeRecords.filter(doc => 
+        const presentDays = employeeRecords.filter(doc =>
           doc.data().status === 'present'
         ).length;
 
         const totalWorkingDays = new Date(year, month, 0).getDate(); // Days in month
-        const attendancePercentage = totalWorkingDays > 0 
-          ? Math.round((presentDays / totalWorkingDays) * 100) 
+        const attendancePercentage = totalWorkingDays > 0
+          ? Math.round((presentDays / totalWorkingDays) * 100)
           : 0;
 
         return {
-          employeeId: employee.id,
+          employeeId: employee.employeeId,
           employeeName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown',
           employeeEmail: employee.email || '',
           department: employee.department || 'Unassigned',
+          position: employee.position || 'N/A',
+          status: employee.status || 'inactive',
           presentDays,
           totalWorkingDays,
           attendancePercentage,
