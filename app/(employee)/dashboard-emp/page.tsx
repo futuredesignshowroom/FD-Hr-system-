@@ -127,11 +127,20 @@ export default function EmployeeDashboard() {
         console.error('Error listening to leave config:', error);
       });
 
+      // Real-time listener for user's leave balance changes (when admin updates balances)
+      const balanceQuery = query(collection(db, 'leaveBalance'), where('userId', '==', user.id));
+      const unsubscribeBalance = onSnapshot(balanceQuery, () => {
+        fetchPerformance();
+      }, (error) => {
+        console.error('Error listening to leave balance:', error);
+      });
+
       return () => {
         unsubscribeAttendance();
         unsubscribeLeaves();
         unsubscribeSalary();
         unsubscribeConfig();
+        unsubscribeBalance();
       };
     });
 

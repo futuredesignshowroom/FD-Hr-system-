@@ -6,7 +6,7 @@ import { AttendanceCalculator } from '@/lib/calculations';
 import { NotificationService } from './notification.service';
 import { EmployeeService } from './employee.service';
 import { Attendance, AttendanceRecord, AttendanceStatus } from '@/types/attendance';
-import { getCurrentLocation, LocationData } from '@/utils/location';
+import { getCurrentLocation } from '@/utils/location';
 
 export class AttendanceService {
   private static readonly COLLECTION = 'attendance';
@@ -29,14 +29,10 @@ export class AttendanceService {
       // If already checked in and checked out, allow re-check-in (maybe they forgot to check out)
       // But create a new record or update existing one?
 
-      // Get current location
-      let location: LocationData | undefined;
-      try {
-        location = await getCurrentLocation();
-      } catch (locationError) {
-        console.warn('Could not get location for check-in:', locationError);
-        // For now, continue without location, but user wants proper capture
-        // TODO: Make location mandatory to prevent foul play
+      // Get current location - mandatory for check-in
+      const location = await getCurrentLocation();
+      if (!location) {
+        throw new Error('Location access is required for check-in. Please enable location services and try again.');
       }
 
       const attendance: Attendance = {
@@ -50,9 +46,7 @@ export class AttendanceService {
       };
 
       // Only add location if we got it
-      if (location) {
-        attendance.checkInLocation = location;
-      }
+      attendance.checkInLocation = location;
 
       const docRef = await FirestoreDB.addDocument(
         this.COLLECTION,
@@ -96,13 +90,10 @@ export class AttendanceService {
 
       const now = new Date();
 
-      // Get current location
-      let location: LocationData | undefined;
-      try {
-        location = await getCurrentLocation();
-      } catch (locationError) {
-        console.warn('Could not get location for check-out:', locationError);
-        // Continue without location if permission denied
+      // Get current location - mandatory for check-out
+      const location = await getCurrentLocation();
+      if (!location) {
+        throw new Error('Location access is required for check-out. Please enable location services and try again.');
       }
 
       const updateData: any = {
@@ -111,9 +102,7 @@ export class AttendanceService {
       };
 
       // Only add location if we got it
-      if (location) {
-        updateData.checkOutLocation = location;
-      }
+      updateData.checkOutLocation = location;
 
       await FirestoreDB.updateDocument(this.COLLECTION, attendanceId, updateData);
 

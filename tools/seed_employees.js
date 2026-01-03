@@ -202,7 +202,7 @@ async function seed() {
     
     for (const leaveType of leaveTypes) {
       let totalAllowed = 0;
-      if (leaveType === 'sick') totalAllowed = 12;
+      if (leaveType === 'sick') totalAllowed = 6;
       else if (leaveType === 'casual') totalAllowed = 12;
       else if (leaveType === 'earned') totalAllowed = 30;
       else if (leaveType === 'unpaid') totalAllowed = 365;
@@ -242,7 +242,6 @@ async function seed() {
 
     // Add sample salary for current month
     const currentMonth = today.getMonth() + 1;
-    const currentYear = today.getFullYear();
     const salary = {
       userId: emp.id,
       month: currentMonth,

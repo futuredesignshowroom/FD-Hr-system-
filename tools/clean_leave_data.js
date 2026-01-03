@@ -1,16 +1,29 @@
 // tools/clean_leave_data.js - Clean all leave-related data
 
 const admin = require('firebase-admin');
+const fs = require('fs');
 
-// Initialize Firebase Admin SDK
-const serviceAccount = require('../firebase-admin-key.json');
+function initAdmin() {
+  const keyPath = process.env.FIREBASE_ADMIN_SDK_JSON;
+  const keyContent = process.env.FIREBASE_ADMIN_SDK_JSON_CONTENT;
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
-});
+  if (keyPath && fs.existsSync(keyPath)) {
+    const serviceAccount = require(keyPath);
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    return admin.firestore();
+  }
 
-const db = admin.firestore();
+  if (keyContent) {
+    const serviceAccount = JSON.parse(keyContent);
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    return admin.firestore();
+  }
+
+  console.error('Missing service account credentials. Set FIREBASE_ADMIN_SDK_JSON path or FIREBASE_ADMIN_SDK_JSON_CONTENT.');
+  process.exit(1);
+}
+
+const db = initAdmin();
 
 async function deleteCollection(collectionName) {
   console.log(`🗑️ Deleting collection: ${collectionName}`);

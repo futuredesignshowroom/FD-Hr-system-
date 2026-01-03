@@ -77,7 +77,7 @@ export class LeaveConfigService {
           {
             id: 'sick',
             leaveType: 'sick',
-            allowedDaysPerYear: 12,
+            allowedDaysPerYear: 6,
             carryForwardDays: 3,
             requiresApproval: true,
           },
@@ -129,16 +129,35 @@ export class LeaveConfigService {
   }
 
   /**
-   * Get total allowed days for a user across all leave types
+   * Initialize leave balances for a new user
    */
-  static async getTotalAllowedDays(userId: string, year: number = new Date().getFullYear()): Promise<number> {
+  static async initializeUserLeaveBalances(userId: string): Promise<void> {
     try {
-      const balances = await this.getUserLeaveBalance(userId, year);
-      return balances.reduce((total, balance) => total + balance.totalAllowed, 0);
+      const currentYear = new Date().getFullYear();
+      const existingBalances = await this.getUserLeaveBalance(userId, currentYear);
+      
+      if (existingBalances.length === 0) {
+        // Get leave policies
+        const policies = await this.getLeavePolicies();
+        
+        // Create balances based on policies
+        for (const policy of policies) {
+          const balance: LeaveBalance = {
+            userId,
+            leaveType: policy.leaveType,
+            year: currentYear,
+            totalAllowed: policy.allowedDaysPerYear,
+            used: 0,
+            remaining: policy.allowedDaysPerYear,
+            carryForward: 0,
+          };
+          
+          await this.setUserLeaveBalance(balance);
+        }
+      }
     } catch (error) {
-      console.error('Error getting total allowed days:', error);
-      // Return default if no balance set
-      return 30; // Default total leaves
+      console.error('Error initializing user leave balances:', error);
+      throw error;
     }
   }
 }

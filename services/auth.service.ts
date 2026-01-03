@@ -14,6 +14,7 @@ import { FirestoreDB } from '@/lib/firestore';
 import { User, UserRole } from '@/types/user';
 import { EmployeeService } from './employee.service';
 import { Employee } from '@/types/employee';
+import { LeaveConfigService } from './leave-config.service';
 
 export class AuthService {
   /**
@@ -73,6 +74,9 @@ export class AuthService {
         };
 
         await EmployeeService.createEmployee(employee);
+
+        // Initialize leave balances for the new employee
+        await LeaveConfigService.initializeUserLeaveBalances(firebaseUser.uid);
       }
 
       return user;
