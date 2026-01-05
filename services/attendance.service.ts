@@ -182,18 +182,36 @@ export class AttendanceService {
 
       console.log('getLastIncompleteRecord - Found', recentRecords.length, 'recent records for user:', userId);
 
-      // Find records that have check-in but no check-out (checkOutTime is null, undefined, or empty)
+      // Find records that have check-in but no check-out
+      // Treat null/undefined/empty string and explicit 'N/A' as missing check-out
       const incompleteRecords = recentRecords.filter((record) => {
         const hasCheckIn = !!record.checkInTime;
-        const hasCheckOut = !!(record.checkOutTime && record.checkOutTime !== null && record.checkOutTime !== undefined);
+        const co = record.checkOutTime;
+        let hasCheckOut = false;
+        if (co === null || co === undefined) {
+          hasCheckOut = false;
+        } else if (typeof co === 'string') {
+          hasCheckOut = co !== '' && co !== 'N/A';
+        } else {
+          // Assume non-string (Date) is a valid check-out
+          hasCheckOut = true;
+        }
         console.log('Record', record.id, '- hasCheckIn:', hasCheckIn, 'hasCheckOut:', hasCheckOut, 'checkOutTime:', record.checkOutTime);
         return hasCheckIn && !hasCheckOut;
       });
 
       console.log('getLastIncompleteRecord - Found', incompleteRecords.length, 'incomplete records');
 
-      // Return the most recent incomplete record (first in the sorted list since we ordered by createdAt desc)
-      const result = incompleteRecords.length > 0 ? incompleteRecords[0] : null;
+      // Prefer an incomplete record for today if present
+      const today = new Date();
+      const todayStr = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toDateString();
+      const todayIncomplete = incompleteRecords.find((record) => {
+        if (!record.date) return false;
+        const recordDate = (record.date && typeof (record.date as any).toDate === 'function') ? (record.date as any).toDate() : new Date(record.date);
+        return new Date(recordDate.getFullYear(), recordDate.getMonth(), recordDate.getDate()).toDateString() === todayStr;
+      });
+
+      const result = todayIncomplete || (incompleteRecords.length > 0 ? incompleteRecords[0] : null);
       console.log('getLastIncompleteRecord - Returning record:', result?.id || 'null');
       return result;
     } catch (error) {
