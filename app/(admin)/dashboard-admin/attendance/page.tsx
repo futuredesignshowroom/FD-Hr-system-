@@ -128,91 +128,105 @@ export default function AdminAttendancePage() {
   }, [currentYear, currentMonth]);
 
   useEffect(() => {
-    loadEmployees();
+    let unsubscribeEmployees: (() => void) | null = null;
+    let unsubscribeAttendance: (() => void) | null = null;
 
-    if (!db) {
-      setError('Firebase not initialized');
-      setLoading(false);
-      return;
-    }
+    const init = async () => {
+      try {
+        // Load employees first
+        await loadEmployees();
 
-    // Real-time listener for employees
-    const employeeQuery = query(collection(db, 'employees'));
-    const unsubscribeEmployees = onSnapshot(employeeQuery, (snapshot) => {
-      const allEmployees = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...convertFirestoreDates(doc.data())
-      })) as Employee[];
-      setEmployees(allEmployees);
-    }, (error) => {
-      console.error('Error listening to employees:', error);
-    });
+        if (!db) {
+          setError('Firebase not initialized');
+          setLoading(false);
+          return;
+        }
 
-    // Real-time listener for attendance records
-    const attendanceQuery = query(collection(db, 'attendance'));
-    const unsubscribeAttendance = onSnapshot(attendanceQuery, (snapshot) => {
-      const allAttendance = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...convertFirestoreDates(doc.data())
-      })) as Attendance[];
+        // Real-time listener for employees
+        const employeeQuery = query(collection(db, 'employees'));
+        unsubscribeEmployees = onSnapshot(employeeQuery, (snapshot) => {
+          const allEmployees = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...convertFirestoreDates(doc.data())
+          })) as Employee[];
+          setEmployees(allEmployees);
+        }, (error) => {
+          console.error('Error listening to employees:', error);
+        });
 
-      // Filter attendance by selected date and add employee info
-      let filteredAttendance = allAttendance
-        .filter(record => {
-          const recordDate = safeDateToISOString(record.date);
-          return recordDate === selectedDate;
-        })
-        .map(record => {
-          const employee = employees.find(emp => emp.id === record.userId);
-          return {
-            ...record,
-            employeeName: ((employee?.firstName || '') + ' ' + (employee?.lastName || '')).trim() || 'Unknown',
-            employeeEmail: employee?.email || 'Unknown',
-            employeeId: employee?.employeeId || 'N/A',
-            department: employee?.department || 'N/A',
-            position: employee?.position || 'N/A',
-            phone: employee?.phone,
-            employeeStatus: employee?.status || 'inactive',
-            avatar: employee?.avatar,
-          };
-        })
-        .sort((a, b) => safeGetTime(b.createdAt) - safeGetTime(a.createdAt));
+        // Real-time listener for attendance records
+        const attendanceQuery = query(collection(db, 'attendance'));
+        unsubscribeAttendance = onSnapshot(attendanceQuery, (snapshot) => {
+          const allAttendance = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...convertFirestoreDates(doc.data())
+          })) as Attendance[];
 
-      // Apply search and filter
-      if (searchTerm) {
-        filteredAttendance = filteredAttendance.filter(record =>
-          record.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          record.employeeEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          record.employeeId.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+          // Filter attendance by selected date and add employee info
+          let filteredAttendance = allAttendance
+            .filter(record => {
+              const recordDate = safeDateToISOString(record.date);
+              return recordDate === selectedDate;
+            })
+            .map(record => {
+              const employee = employees.find(emp => emp.id === record.userId);
+              return {
+                ...record,
+                employeeName: ((employee?.firstName || '') + ' ' + (employee?.lastName || '')).trim() || 'Unknown',
+                employeeEmail: employee?.email || 'Unknown',
+                employeeId: employee?.employeeId || 'N/A',
+                department: employee?.department || 'N/A',
+                position: employee?.position || 'N/A',
+                phone: employee?.phone,
+                employeeStatus: employee?.status || 'inactive',
+                avatar: employee?.avatar,
+              };
+            })
+            .sort((a, b) => safeGetTime(b.createdAt) - safeGetTime(a.createdAt));
+
+          // Apply search and filter
+          if (searchTerm) {
+            filteredAttendance = filteredAttendance.filter(record =>
+              record.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              record.employeeEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              record.employeeId.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+          }
+
+          if (departmentFilter) {
+            filteredAttendance = filteredAttendance.filter(record =>
+              record.department === departmentFilter
+            );
+          }
+
+          if (statusFilter) {
+            filteredAttendance = filteredAttendance.filter(record =>
+              record.employeeStatus === statusFilter
+            );
+          }
+
+          setAttendanceRecords(filteredAttendance);
+          setLoading(false);
+          setError('');
+        }, (error) => {
+          console.error('Error listening to attendance:', error);
+          setError('Failed to load attendance data');
+          setLoading(false);
+        });
+      } catch (err) {
+        console.error('Error initializing:', err);
+        setError('Failed to initialize');
+        setLoading(false);
       }
+    };
 
-      if (departmentFilter) {
-        filteredAttendance = filteredAttendance.filter(record =>
-          record.department === departmentFilter
-        );
-      }
-
-      if (statusFilter) {
-        filteredAttendance = filteredAttendance.filter(record =>
-          record.employeeStatus === statusFilter
-        );
-      }
-
-      setAttendanceRecords(filteredAttendance);
-      setLoading(false);
-      setError('');
-    }, (error) => {
-      console.error('Error listening to attendance:', error);
-      setError('Failed to load attendance data');
-      setLoading(false);
-    });
+    init();
 
     return () => {
-      unsubscribeEmployees();
-      unsubscribeAttendance();
+      if (unsubscribeEmployees) unsubscribeEmployees();
+      if (unsubscribeAttendance) unsubscribeAttendance();
     };
-  }, [selectedDate, employees, searchTerm, departmentFilter, statusFilter]);
+  }, [selectedDate, searchTerm, departmentFilter, statusFilter]);
 
   useEffect(() => {
     if (viewMode === 'monthly') {
