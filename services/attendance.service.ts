@@ -20,7 +20,9 @@ export class AttendanceService {
 
       // Check if already checked in today (any record for today)
       const todayRecord = await this.getAttendanceByDate(userId, now);
+      console.log('Check-in attempt - Today record found:', !!todayRecord, 'for user:', userId, 'date:', now.toDateString());
       if (todayRecord) {
+        console.log('Blocking check-in - record already exists:', todayRecord.id);
         throw new Error('Already checked in for today. You can only check in once per day.');
       }
 
@@ -168,11 +170,25 @@ export class AttendanceService {
       // Find the record for the specific date
       const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()); // Normalize target date
       const targetDateStr = targetDate.toDateString();
+      console.log('Looking for records on date:', targetDateStr, 'for user:', userId);
+      console.log('Total records found:', records.length);
 
       const matchingRecord = records.find((record) => {
-        const recordDate = new Date(record.date);
-        return recordDate.toDateString() === targetDateStr;
+        let recordDate: Date;
+        if (record.date && typeof record.date.toDate === 'function') {
+          // Firestore Timestamp
+          recordDate = record.date.toDate();
+        } else {
+          // Regular Date
+          recordDate = new Date(record.date);
+        }
+        const recordDateNormalized = new Date(recordDate.getFullYear(), recordDate.getMonth(), recordDate.getDate());
+        const recordDateStr = recordDateNormalized.toDateString();
+        console.log('Checking record:', record.id, 'date:', recordDateStr, 'matches:', recordDateStr === targetDateStr);
+        return recordDateStr === targetDateStr;
       });
+
+      console.log('Found matching record:', !!matchingRecord, matchingRecord?.id);
 
       return matchingRecord || null;
     } catch (error) {
