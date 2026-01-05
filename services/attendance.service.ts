@@ -62,7 +62,7 @@ export class AttendanceService {
   }
 
   /**
-   * Record check-out (works independently of check-in date)
+   * Record check-out (works independently of check-in)
    */
   static async checkOut(userId: string): Promise<void> {
     try {
@@ -80,30 +80,59 @@ export class AttendanceService {
       const lastIncompleteRecord = await this.getLastIncompleteRecord(userId);
       console.log('checkOut - lastIncompleteRecord:', lastIncompleteRecord?.id || 'null');
 
-      if (!lastIncompleteRecord || !lastIncompleteRecord.id) {
-        throw new Error('No active check-in found. Please check in first before checking out.');
-      }
+      if (lastIncompleteRecord && lastIncompleteRecord.id) {
+        // Update the existing incomplete record with check-out time and location
+        const updateData = {
+          checkOutTime: now,
+          checkOutLocation: location,
+          updatedAt: now,
+          status: 'present'
+        };
 
-      // Update the existing record with check-out time and location
-      const updateData = {
-        checkOutTime: now,
-        checkOutLocation: location,
-        updatedAt: now,
-        status: 'present'
-      };
+        console.log('checkOut - Updating record', lastIncompleteRecord.id, 'with data:', updateData);
+        await FirestoreDB.updateDocument(this.COLLECTION, lastIncompleteRecord.id, updateData);
 
-      console.log('checkOut - Updating record', lastIncompleteRecord.id, 'with data:', updateData);
-      await FirestoreDB.updateDocument(this.COLLECTION, lastIncompleteRecord.id, updateData);
+        // Create notification for admin
+        try {
+          const employee = await EmployeeService.getEmployeeProfile(userId);
+          const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee';
 
-      // Create notification for admin
-      try {
-        const employee = await EmployeeService.getEmployeeProfile(userId);
-        const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee';
+          await NotificationService.createAttendanceNotification(lastIncompleteRecord, employeeName, 'checkout');
+        } catch (notificationError) {
+          console.error('Error creating check-out notification:', notificationError);
+          // Don't fail the check-out if notification fails
+        }
+      } else {
+        // No incomplete record found, create a new record with only check-out time
+        const attendance: Attendance = {
+          id: '',
+          userId,
+          date: new Date(now.getFullYear(), now.getMonth(), now.getDate()), // Store date without time
+          checkOutTime: now,
+          status: 'present',
+          createdAt: now,
+          updatedAt: now,
+        };
 
-        await NotificationService.createAttendanceNotification(lastIncompleteRecord, employeeName, 'checkout');
-      } catch (notificationError) {
-        console.error('Error creating check-out notification:', notificationError);
-        // Don't fail the check-out if notification fails
+        // Only add location if we got it
+        attendance.checkOutLocation = location;
+
+        const docRef = await FirestoreDB.addDocument(
+          this.COLLECTION,
+          attendance
+        );
+        attendance.id = docRef.id;
+
+        // Create notification for admin
+        try {
+          const employee = await EmployeeService.getEmployeeProfile(userId);
+          const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee';
+
+          await NotificationService.createAttendanceNotification(attendance, employeeName, 'checkout');
+        } catch (notificationError) {
+          console.error('Error creating check-out notification:', notificationError);
+          // Don't fail the check-out if notification fails
+        }
       }
     } catch (error) {
       console.error('Error checking out:', error);
