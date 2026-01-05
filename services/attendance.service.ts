@@ -39,7 +39,7 @@ export class AttendanceService {
       const attendance: Attendance = {
         id: '',
         userId,
-        date: now,
+        date: new Date(now.getFullYear(), now.getMonth(), now.getDate()), // Store date without time
         checkInTime: now,
         status: 'present',
         createdAt: now,
@@ -166,13 +166,11 @@ export class AttendanceService {
       );
 
       // Find the record for the specific date
-      const targetDate = new Date(date);
-      targetDate.setHours(0, 0, 0, 0);
+      const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()); // Normalize target date
       const targetDateStr = targetDate.toDateString();
 
       const matchingRecord = records.find((record) => {
         const recordDate = new Date(record.date);
-        recordDate.setHours(0, 0, 0, 0);
         return recordDate.toDateString() === targetDateStr;
       });
 
