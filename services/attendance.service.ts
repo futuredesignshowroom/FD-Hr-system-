@@ -17,17 +17,12 @@ export class AttendanceService {
   static async checkIn(userId: string): Promise<Attendance> {
     try {
       const now = new Date();
-      const today = new Date(now);
-      today.setHours(0, 0, 0, 0);
 
-      // Check if already checked in today (one check-in per day)
-      const todayAttendance = await this.getAttendanceByDate(userId, now);
-      if (todayAttendance) {
-        throw new Error('Already checked in for today. One check-in per day allowed.');
+      // Check if already checked in and not checked out
+      const currentCheckIn = await this.getCurrentCheckIn(userId);
+      if (currentCheckIn) {
+        throw new Error('Already checked in. Please check out first before checking in again.');
       }
-
-      // If already checked in and checked out, allow re-check-in (maybe they forgot to check out)
-      // But create a new record or update existing one?
 
       // Get current location - mandatory for check-in
       const location: LocationData = await getCurrentLocation();
@@ -73,7 +68,7 @@ export class AttendanceService {
   }
 
   /**
-   * Record check-out (works completely independently of check-in)
+   * Record check-out (works independently of check-in date)
    */
   static async checkOut(userId: string): Promise<void> {
     try {
@@ -85,35 +80,31 @@ export class AttendanceService {
         throw new Error('Location access is required for check-out. Please enable location services and try again.');
       }
 
-      // Try to find existing check-in record for today
-      const todayAttendance = await this.getAttendanceByDate(userId, now);
+      // Find the most recent check-in record that doesn't have check-out yet
+      const currentCheckIn = await this.getCurrentCheckIn(userId);
 
-      if (todayAttendance && todayAttendance.id) {
-        // If there's already a record for today, update it with check-out
-        if (todayAttendance.checkOutTime) {
-          throw new Error('Already checked out for today.');
-        }
-
+      if (currentCheckIn && currentCheckIn.id) {
+        // If there's an active check-in, update it with check-out
         const updateData: any = {
           checkOutTime: now,
           checkOutLocation: location,
           updatedAt: now,
         };
 
-        await FirestoreDB.updateDocument(this.COLLECTION, todayAttendance.id, updateData);
+        await FirestoreDB.updateDocument(this.COLLECTION, currentCheckIn.id, updateData);
 
         // Create notification for admin
         try {
           const employee = await EmployeeService.getEmployeeProfile(userId);
           const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee';
 
-          await NotificationService.createAttendanceNotification(todayAttendance, employeeName, 'checkout');
+          await NotificationService.createAttendanceNotification(currentCheckIn, employeeName, 'checkout');
         } catch (notificationError) {
           console.error('Error creating check-out notification:', notificationError);
           // Don't fail the check-out if notification fails
         }
       } else {
-        // If no record exists for today, create a new one with only check-out
+        // If no active check-in exists, create a new record with only check-out
         const attendance: Attendance = {
           id: '',
           userId,

@@ -316,6 +316,58 @@ export default function AdminAttendancePage() {
     );
   }
 
+  const handleDownloadAttendance = () => {
+    if (attendanceRecords.length === 0) {
+      alert('No attendance data to download');
+      return;
+    }
+
+    // Create CSV content
+    const headers = [
+      'Date',
+      'Employee Name',
+      'Employee ID',
+      'Email',
+      'Department',
+      'Position',
+      'Status',
+      'Check In Time',
+      'Check Out Time',
+      'Check In Location',
+      'Check Out Location',
+      'Employee Status'
+    ];
+
+    const csvContent = [
+      headers.join(','),
+      ...attendanceRecords.map(record => [
+        new Date(record.date).toLocaleDateString(),
+        `"${record.employeeName}"`,
+        record.employeeId,
+        record.employeeEmail,
+        record.department,
+        record.position,
+        record.status,
+        record.checkInTime ? new Date(record.checkInTime).toLocaleString() : '',
+        record.checkOutTime ? new Date(record.checkOutTime).toLocaleString() : '',
+        record.checkInLocation ? `"${record.checkInLocation.lat}, ${record.checkInLocation.lng}"` : '',
+        record.checkOutLocation ? `"${record.checkOutLocation.lat}, ${record.checkOutLocation.lng}"` : '',
+        record.employeeStatus
+      ].join(','))
+    ].join('\n');
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `attendance_${selectedDate}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const stats = getTodayStats();
 
   return (
@@ -406,12 +458,21 @@ export default function AdminAttendancePage() {
                 </select>
               </div>
             </div>
-            <button
-              onClick={loadData}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-            >
-              Refresh
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={loadData}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              >
+                Refresh
+              </button>
+              <button
+                onClick={handleDownloadAttendance}
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                disabled={attendanceRecords.length === 0}
+              >
+                Download CSV
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

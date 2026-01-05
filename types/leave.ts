@@ -1,5 +1,5 @@
 export type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
-export type LeaveType = 'sick' | 'casual' | 'earned' | 'unpaid' | 'maternity' | 'paternity';
+export type LeaveType = 'sick' | 'casual' | 'custom';
 
 export interface LeaveRequest {
   id: string;

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { LeaveService } from '@/services/leave.service';
 import { LeaveConfigService } from '@/services/leave-config.service';
 import { useAuthStore } from '@/store/auth.store';
-import { LeaveRequest, LeaveType, LeaveBalance } from '@/types/leave';
+import { LeaveRequest, LeaveType, LeaveBalance, LeaveStatus } from '@/types/leave';
 import Loader from '@/components/ui/Loader';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
@@ -235,6 +235,42 @@ export default function EmployeeLeavesPage() {
     return () => {}; // Return empty cleanup function when no user
   }, [user, loadData]);
 
+  const getLeaveTypeOptions = () => {
+    return leaveBalances.map(balance => ({
+      value: balance.leaveType,
+      label: `${balance.leaveType.charAt(0).toUpperCase() + balance.leaveType.slice(1)} Leave (${balance.remaining} days remaining)`,
+      disabled: balance.remaining <= 0,
+    }));
+  };
+
+  const getStatusBadge = (status: LeaveStatus) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="warning">Pending</Badge>;
+      case 'approved':
+        return <Badge variant="success">Approved</Badge>;
+      case 'rejected':
+        return <Badge variant="danger">Rejected</Badge>;
+      case 'cancelled':
+        return <Badge variant="default">Cancelled</Badge>;
+      default:
+        return <Badge variant="default">{status}</Badge>;
+    }
+  };
+
+  const calculateDays = (start: Date, end: Date): number => {
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    return diffDays;
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -315,49 +351,6 @@ export default function EmployeeLeavesPage() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData({ ...formData, [field]: value });
-  };
-
-  const calculateDays = (startDate: Date, endDate: Date) => {
-    const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    return diffDays;
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return <Badge variant="success">Approved</Badge>;
-      case 'rejected':
-        return <Badge variant="danger">Rejected</Badge>;
-      case 'pending':
-        return <Badge variant="warning">Pending</Badge>;
-      default:
-        return <Badge variant="default">{status}</Badge>;
-    }
-  };
-
-  const getLeaveTypeOptions = () => {
-    if (loading) {
-      return [
-        { value: '', label: 'Loading leave types...', disabled: true },
-      ];
-    }
-
-    if (leaveBalances.length === 0) {
-      return [
-        { value: '', label: 'No leave types configured - contact administrator', disabled: true },
-      ];
-    }
-
-    return leaveBalances.map(balance => ({
-      value: balance.leaveType,
-      label: `${balance.leaveType.charAt(0).toUpperCase() + balance.leaveType.slice(1)} Leave (${balance.remaining} days remaining)`,
-      disabled: balance.remaining <= 0
-    }));
   };
 
   if (loading) return <Loader />;

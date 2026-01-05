@@ -49,7 +49,7 @@ export default function LeaveConfigPage() {
       const balances = await LeaveConfigService.getUserLeaveBalance(employeeId);
       
       // Ensure all leave types have balances, initialize defaults if missing
-      const leaveTypes: LeaveType[] = ['sick', 'casual', 'earned', 'unpaid', 'maternity', 'paternity'];
+      const leaveTypes: LeaveType[] = ['sick', 'casual'];
       const currentYear = new Date().getFullYear();
       
       const completeBalances = leaveTypes.map(leaveType => {

@@ -88,34 +88,6 @@ export class LeaveConfigService {
             carryForwardDays: 0,
             requiresApproval: true,
           },
-          {
-            id: 'earned',
-            leaveType: 'earned',
-            allowedDaysPerYear: 30,
-            carryForwardDays: 90,
-            requiresApproval: true,
-          },
-          {
-            id: 'unpaid',
-            leaveType: 'unpaid',
-            allowedDaysPerYear: 365,
-            carryForwardDays: 0,
-            requiresApproval: true,
-          },
-          {
-            id: 'maternity',
-            leaveType: 'maternity',
-            allowedDaysPerYear: 84,
-            carryForwardDays: 0,
-            requiresApproval: true,
-          },
-          {
-            id: 'paternity',
-            leaveType: 'paternity',
-            allowedDaysPerYear: 14,
-            carryForwardDays: 0,
-            requiresApproval: true,
-          },
         ];
 
         for (const policy of defaultPolicies) {
