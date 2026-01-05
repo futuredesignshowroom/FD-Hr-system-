@@ -20,9 +20,7 @@ export class AttendanceService {
 
       // Check if already checked in today (any record for today)
       const todayRecord = await this.getAttendanceByDate(userId, now);
-      console.log('Check-in attempt - Today record found:', !!todayRecord, 'for user:', userId, 'date:', now.toDateString());
       if (todayRecord) {
-        console.log('Blocking check-in - record already exists:', todayRecord.id);
         throw new Error('Already checked in for today. You can only check in once per day.');
       }
 
@@ -90,12 +88,6 @@ export class AttendanceService {
 
       // Find the most recent check-in record that doesn't have check-out yet
       const currentCheckIn = await this.getCurrentCheckIn(userId);
-      console.log('Check-out attempt - Current check-in found:', !!currentCheckIn, 'for user:', userId);
-      if (currentCheckIn) {
-        console.log('Found check-in record:', currentCheckIn.id, 'checkInTime:', currentCheckIn.checkInTime);
-      } else {
-        console.log('No active check-in found, will create new check-out only record');
-      }
 
       if (currentCheckIn && currentCheckIn.id) {
         // If there's an active check-in, update it with check-out
@@ -176,8 +168,6 @@ export class AttendanceService {
       // Find the record for the specific date
       const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()); // Normalize target date
       const targetDateStr = targetDate.toDateString();
-      console.log('Looking for records on date:', targetDateStr, 'for user:', userId);
-      console.log('Total records found:', records.length);
 
       const matchingRecord = records.find((record) => {
         let recordDate: Date;
@@ -190,11 +180,8 @@ export class AttendanceService {
         }
         const recordDateNormalized = new Date(recordDate.getFullYear(), recordDate.getMonth(), recordDate.getDate());
         const recordDateStr = recordDateNormalized.toDateString();
-        console.log('Checking record:', record.id, 'date:', recordDateStr, 'matches:', recordDateStr === targetDateStr);
         return recordDateStr === targetDateStr;
       });
-
-      console.log('Found matching record:', !!matchingRecord, matchingRecord?.id);
 
       return matchingRecord || null;
     } catch (error) {
@@ -251,7 +238,6 @@ export class AttendanceService {
       const activeRecord = todayRecords.find((record) => {
         const hasCheckIn = !!record.checkInTime;
         const hasCheckOut = !!(record.checkOutTime && record.checkOutTime !== null && record.checkOutTime !== undefined);
-        console.log('Checking record:', record.id, 'hasCheckIn:', hasCheckIn, 'hasCheckOut:', hasCheckOut, 'checkInTime:', record.checkInTime, 'checkOutTime:', record.checkOutTime);
         return hasCheckIn && !hasCheckOut;
       });
 
