@@ -52,6 +52,7 @@ export default function EmployeeLeavesPage() {
 
       // If no balances exist, initialize them based on policies
       if (balances.length === 0 && policies.length > 0) {
+        console.log('No leave balances found, initializing...');
         const currentYear = new Date().getFullYear();
         const newBalances: LeaveBalance[] = policies.map(policy => ({
           userId: user.id,
@@ -69,6 +70,7 @@ export default function EmployeeLeavesPage() {
         );
 
         setLeaveBalances(newBalances);
+        console.log('Leave balances initialized successfully');
       } else {
         setLeaveBalances(balances);
       }

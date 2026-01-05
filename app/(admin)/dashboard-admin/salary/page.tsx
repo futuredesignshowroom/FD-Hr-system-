@@ -44,7 +44,38 @@ export default function AdminSalaryPage() {
       const employeesWithSalary = await Promise.all(
         employeeData.map(async (emp) => {
           try {
-            const config = await SalaryService.getSalaryConfig(emp.id);
+            let config = await SalaryService.getSalaryConfig(emp.id);
+
+            // If no config exists, create a default one
+            if (!config) {
+              console.log(`Creating default salary config for ${emp.firstName} ${emp.lastName}`);
+              const defaultConfig: SalaryConfig = {
+                userId: emp.id,
+                baseSalary: 30000,
+                allowances: [
+                  {
+                    id: 'conveyance-' + emp.id,
+                    name: 'Conveyance Allowance',
+                    amount: 5000,
+                    type: 'fixed'
+                  },
+                  {
+                    id: 'medical-' + emp.id,
+                    name: 'Medical Allowance',
+                    amount: 3000,
+                    type: 'fixed'
+                  }
+                ],
+                totalLeavesAllowed: 30,
+                workingDaysPerMonth: 26,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              };
+
+              await SalaryService.setSalaryConfig(defaultConfig);
+              config = defaultConfig;
+            }
+
             const currentDate = new Date();
             const currentSalary = await SalaryService.getSalary(
               emp.id,
