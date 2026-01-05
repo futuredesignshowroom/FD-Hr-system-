@@ -207,26 +207,40 @@ export class AttendanceService {
    */
   static async getCurrentCheckIn(userId: string): Promise<Attendance | null> {
     try {
-      // Get today's records first, then sort and find active check-in
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      // Get recent records for the user (last 30 days to be safe)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      console.log('getCurrentCheckIn - Looking for user:', userId, 'today:', today.toISOString(), 'tomorrow:', tomorrow.toISOString());
-
-      const todayRecords = await FirestoreDB.queryCollection<Attendance>(
+      const recentRecords = await FirestoreDB.queryCollection<Attendance>(
         this.COLLECTION,
         [
           where('userId', '==', userId),
-          where('date', '>=', today),
-          where('date', '<', tomorrow)
+          where('createdAt', '>=', thirtyDaysAgo),
+          orderBy('createdAt', 'desc'),
+          limit(50) // Get more records to be safe
         ]
       );
 
+      console.log('getCurrentCheckIn - Found', recentRecords.length, 'recent records for user:', userId);
+
+      // Filter for today's records in JavaScript (more reliable than Firestore date queries)
+      const today = new Date();
+      const todayStr = today.toDateString();
+
+      const todayRecords = recentRecords.filter((record) => {
+        let recordDate: Date;
+        if (record.date && typeof (record.date as any).toDate === 'function') {
+          recordDate = (record.date as any).toDate();
+        } else {
+          recordDate = new Date(record.date);
+        }
+        const recordDateStr = recordDate.toDateString();
+        return recordDateStr === todayStr;
+      });
+
       console.log('getCurrentCheckIn - Found', todayRecords.length, 'records for today');
 
-      // Sort by createdAt descending
+      // Sort by createdAt descending (most recent first)
       todayRecords.sort((a, b) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
