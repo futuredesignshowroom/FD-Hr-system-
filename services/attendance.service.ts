@@ -85,15 +85,14 @@ export class AttendanceService {
 
       if (currentCheckIn && currentCheckIn.id) {
         // If there's an active check-in, update it with check-out
-        const updatedRecord = {
-          ...currentCheckIn,
+        const updateData = {
           checkOutTime: now,
           checkOutLocation: location,
           updatedAt: now,
           status: 'present'
         };
 
-        await FirestoreDB.addDocument(this.COLLECTION, updatedRecord, currentCheckIn.id);
+        await FirestoreDB.updateDocument(this.COLLECTION, currentCheckIn.id, updateData);
 
         // Create notification for admin
         try {
