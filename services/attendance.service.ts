@@ -90,6 +90,12 @@ export class AttendanceService {
 
       // Find the most recent check-in record that doesn't have check-out yet
       const currentCheckIn = await this.getCurrentCheckIn(userId);
+      console.log('Check-out attempt - Current check-in found:', !!currentCheckIn, 'for user:', userId);
+      if (currentCheckIn) {
+        console.log('Found check-in record:', currentCheckIn.id, 'checkInTime:', currentCheckIn.checkInTime);
+      } else {
+        console.log('No active check-in found, will create new check-out only record');
+      }
 
       if (currentCheckIn && currentCheckIn.id) {
         // If there's an active check-in, update it with check-out
@@ -207,6 +213,8 @@ export class AttendanceService {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
+      console.log('getCurrentCheckIn - Looking for user:', userId, 'today:', today.toISOString(), 'tomorrow:', tomorrow.toISOString());
+
       const todayRecords = await FirestoreDB.queryCollection<Attendance>(
         this.COLLECTION,
         [
@@ -215,6 +223,8 @@ export class AttendanceService {
           where('date', '<', tomorrow)
         ]
       );
+
+      console.log('getCurrentCheckIn - Found', todayRecords.length, 'records for today');
 
       // Sort by createdAt descending
       todayRecords.sort((a, b) => {
@@ -225,11 +235,13 @@ export class AttendanceService {
 
       // Find the most recent record that has check-in but no check-out
       const activeRecord = todayRecords.find((record) => {
-        return record.checkInTime && 
-               (record.checkOutTime === null || 
-                record.checkOutTime === undefined);
+        const hasCheckIn = !!record.checkInTime;
+        const hasCheckOut = !!(record.checkOutTime && record.checkOutTime !== null && record.checkOutTime !== undefined && record.checkOutTime !== '');
+        console.log('Checking record:', record.id, 'hasCheckIn:', hasCheckIn, 'hasCheckOut:', hasCheckOut, 'checkInTime:', record.checkInTime, 'checkOutTime:', record.checkOutTime);
+        return hasCheckIn && !hasCheckOut;
       });
 
+      console.log('getCurrentCheckIn - Active record found:', !!activeRecord, activeRecord?.id);
       return activeRecord || null;
     } catch (error) {
       console.error('Error getting current check-in:', error);
