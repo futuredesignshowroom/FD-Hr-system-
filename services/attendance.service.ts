@@ -89,6 +89,11 @@ export class AttendanceService {
           checkOutTime: now,
           checkOutLocation: location,
           updatedAt: now,
+          // Ensure we preserve the existing check-in data
+          checkInTime: currentCheckIn.checkInTime,
+          checkInLocation: currentCheckIn.checkInLocation,
+          date: currentCheckIn.date,
+          status: 'present'
         };
 
         await FirestoreDB.updateDocument(this.COLLECTION, currentCheckIn.id, updateData);
@@ -179,13 +184,13 @@ export class AttendanceService {
    */
   static async getCurrentCheckIn(userId: string): Promise<Attendance | null> {
     try {
-      // Get recent records to find the active check-in
+      // Get recent records to find the active check-in (increased limit to ensure we find it)
       const records = await FirestoreDB.queryCollection<Attendance>(
         this.COLLECTION,
         [
           where('userId', '==', userId),
           orderBy('createdAt', 'desc'),
-          limit(5) // Check last 5 records
+          limit(20) // Increased limit to find active check-in even with many records
         ]
       );
 
