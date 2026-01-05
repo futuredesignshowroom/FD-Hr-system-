@@ -184,20 +184,27 @@ export class AttendanceService {
    */
   static async getCurrentCheckIn(userId: string): Promise<Attendance | null> {
     try {
-      // Get recent records to find the active check-in (increased limit to ensure we find it)
-      const records = await FirestoreDB.queryCollection<Attendance>(
+      // Get all attendance records for the user (limit to recent ones for performance)
+      const allRecords = await FirestoreDB.queryCollection<Attendance>(
         this.COLLECTION,
         [
           where('userId', '==', userId),
           orderBy('createdAt', 'desc'),
-          limit(20) // Increased limit to find active check-in even with many records
+          limit(100) // Get last 100 records
         ]
       );
 
+      // Sort records by createdAt descending and find the active check-in
+      allRecords.sort((a, b) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+      });
+
       // Find the most recent record that has check-in but no check-out
-      const activeRecord = records.find((record) =>
-        record.checkInTime && !record.checkOutTime
-      );
+      const activeRecord = allRecords.find((record) => {
+        return record.checkInTime && !record.checkOutTime;
+      });
 
       return activeRecord || null;
     } catch (error) {
