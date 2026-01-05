@@ -206,8 +206,7 @@ export class AttendanceService {
       const activeRecord = todayRecords.find((record) => {
         return record.checkInTime && 
                (record.checkOutTime === null || 
-                record.checkOutTime === undefined || 
-                record.checkOutTime === '');
+                record.checkOutTime === undefined);
       });
 
       return activeRecord || null;
