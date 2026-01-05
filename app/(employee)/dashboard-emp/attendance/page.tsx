@@ -12,7 +12,7 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export default function EmployeeAttendancePage() {
-  const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<{ date: Date; records: Attendance[] }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [checkingIn, setCheckingIn] = useState(false);
@@ -35,9 +35,25 @@ export default function EmployeeAttendancePage() {
         // Try to get attendance records using service method as fallback
         const records = await AttendanceService.getUserAttendance(user.id);
 
-        // Sort by date descending
-        records.sort((a, b) => safeGetTime(b.date) - safeGetTime(a.date));
-        setAttendanceRecords(records);
+        // Group records by date
+        const groupedRecords = records.reduce((acc, record) => {
+          const dateKey = new Date(record.date).toDateString();
+          if (!acc[dateKey]) {
+            acc[dateKey] = [];
+          }
+          acc[dateKey].push(record);
+          return acc;
+        }, {} as Record<string, Attendance[]>);
+
+        // Convert to array of grouped records, sorted by date descending
+        const groupedArray = Object.keys(groupedRecords)
+          .map(dateKey => ({
+            date: new Date(dateKey),
+            records: groupedRecords[dateKey].sort((a, b) => safeGetTime(a.createdAt) - safeGetTime(b.createdAt))
+          }))
+          .sort((a, b) => safeGetTime(b.date) - safeGetTime(a.date));
+
+        setAttendanceRecords(groupedArray);
         setLoading(false);
       } catch (fallbackError) {
         console.error('Fallback fetch failed:', fallbackError);
@@ -70,9 +86,25 @@ export default function EmployeeAttendancePage() {
               };
             }) as Attendance[];
 
-            // Sort by date descending
-            records.sort((a, b) => safeGetTime(b.date) - safeGetTime(a.date));
-            setAttendanceRecords(records);
+            // Group records by date
+            const groupedRecords = records.reduce((acc, record) => {
+              const dateKey = new Date(record.date).toDateString();
+              if (!acc[dateKey]) {
+                acc[dateKey] = [];
+              }
+              acc[dateKey].push(record);
+              return acc;
+            }, {} as Record<string, Attendance[]>);
+
+            // Convert to array of grouped records, sorted by date descending
+            const groupedArray = Object.keys(groupedRecords)
+              .map(dateKey => ({
+                date: new Date(dateKey),
+                records: groupedRecords[dateKey].sort((a, b) => safeGetTime(a.createdAt) - safeGetTime(b.createdAt))
+              }))
+              .sort((a, b) => safeGetTime(b.date) - safeGetTime(a.date));
+
+            setAttendanceRecords(groupedArray as any);
             setLoading(false);
             setError('');
             retryCount = 0; // Reset retry count on success
@@ -143,15 +175,6 @@ export default function EmployeeAttendancePage() {
     try {
       setCheckingOut(true);
       console.log('Starting check-out process...');
-
-      // Check if already checked out today
-      const today = new Date();
-      const todayRecord = await AttendanceService.getAttendanceByDate(user.id, today);
-
-      if (todayRecord && todayRecord.checkOutTime) {
-        alert('Already checked out for today.');
-        return;
-      }
 
       // Perform check-out (works independently of check-in)
       await AttendanceService.checkOut(user.id);
@@ -251,52 +274,70 @@ export default function EmployeeAttendancePage() {
             </tr>
           </thead>
           <tbody>
-            {attendanceRecords.map((record) => (
-              <tr key={record.id} className="border-b hover:bg-gray-50">
-                <td className="px-6 py-4">
-                  {new Date(record.date).toLocaleDateString()}
-                </td>
-                <td className="px-6 py-4">
-                  {formatTime(record.checkInTime)}
-                </td>
-                <td className="px-6 py-4">
-                  {formatTime(record.checkOutTime)}
-                </td>
-                <td className="px-6 py-4">
-                  {record.checkInLocation ? (
-                    <a
-                      href={getLocationLink(record.checkInLocation)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 underline text-xs"
-                    >
-                      View Location
-                    </a>
-                  ) : (
-                    <span className="text-gray-400 text-xs">No location</span>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  {record.checkOutLocation ? (
-                    <a
-                      href={getLocationLink(record.checkOutLocation)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 underline text-xs"
-                    >
-                      View Location
-                    </a>
-                  ) : (
-                    <span className="text-gray-400 text-xs">No location</span>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 rounded text-xs ${getStatusColor(record.status)}`}>
-                    {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {attendanceRecords.map((group) => {
+              const checkInTimes = group.records.map(r => formatTime(r.checkInTime)).filter(t => t !== 'N/A');
+              const checkOutTimes = group.records.map(r => formatTime(r.checkOutTime)).filter(t => t !== 'N/A');
+              const checkInLocations = group.records.filter(r => r.checkInLocation);
+              const checkOutLocations = group.records.filter(r => r.checkOutLocation);
+              const status = group.records.some(r => r.status === 'present') ? 'present' : 'absent'; // Simple status
+
+              return (
+                <tr key={group.date.toDateString()} className="border-b hover:bg-gray-50">
+                  <td className="px-6 py-4">
+                    {group.date.toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4">
+                    {checkInTimes.length > 0 ? checkInTimes.join(', ') : 'N/A'}
+                  </td>
+                  <td className="px-6 py-4">
+                    {checkOutTimes.length > 0 ? checkOutTimes.join(', ') : 'N/A'}
+                  </td>
+                  <td className="px-6 py-4">
+                    {checkInLocations.length > 0 ? (
+                      <div className="space-y-1">
+                        {checkInLocations.map((record, idx) => (
+                          <a
+                            key={idx}
+                            href={getLocationLink(record.checkInLocation!)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline text-xs block"
+                          >
+                            View Location {idx + 1}
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs">No locations</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    {checkOutLocations.length > 0 ? (
+                      <div className="space-y-1">
+                        {checkOutLocations.map((record, idx) => (
+                          <a
+                            key={idx}
+                            href={getLocationLink(record.checkOutLocation!)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline text-xs block"
+                          >
+                            View Location {idx + 1}
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs">No locations</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2 py-1 rounded text-xs ${getStatusColor(status)}`}>
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
             {attendanceRecords.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
@@ -310,60 +351,69 @@ export default function EmployeeAttendancePage() {
 
       {/* Mobile Card View */}
       <div className="md:hidden space-y-4">
-        {attendanceRecords.map((record) => (
-          <div key={record.id} className="bg-white rounded-lg shadow p-4">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <h3 className="font-semibold text-lg">
-                  {new Date(record.date).toLocaleDateString()}
-                </h3>
-                <span className={`inline-block px-2 py-1 rounded text-xs mt-1 ${getStatusColor(record.status)}`}>
-                  {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
-                </span>
+        {attendanceRecords.map((group) => {
+          const checkInTimes = group.records.map(r => formatTime(r.checkInTime)).filter(t => t !== 'N/A');
+          const checkOutTimes = group.records.map(r => formatTime(r.checkOutTime)).filter(t => t !== 'N/A');
+          const checkInLocations = group.records.filter(r => r.checkInLocation);
+          const checkOutLocations = group.records.filter(r => r.checkOutLocation);
+          const status = group.records.some(r => r.status === 'present') ? 'present' : 'absent';
+
+          return (
+            <div key={group.date.toDateString()} className="bg-white rounded-lg shadow p-4">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="font-semibold text-lg">
+                    {group.date.toLocaleDateString()}
+                  </h3>
+                  <span className={`inline-block px-2 py-1 rounded text-xs mt-1 ${getStatusColor(status)}`}>
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </span>
+                </div>
               </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-gray-600 font-medium">Check In</p>
-                <p className="text-gray-900">{formatTime(record.checkInTime)}</p>
-              </div>
-              <div>
-                <p className="text-gray-600 font-medium">Check Out</p>
-                <p className="text-gray-900">{formatTime(record.checkOutTime)}</p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-gray-600 font-medium mb-1">Locations</p>
-                <div className="flex flex-col space-y-1">
-                  {record.checkInLocation ? (
-                    <a
-                      href={getLocationLink(record.checkInLocation)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 underline text-xs"
-                    >
-                      📍 Check-in Location
-                    </a>
-                  ) : (
-                    <span className="text-gray-400 text-xs">📍 No check-in location</span>
-                  )}
-                  {record.checkOutLocation ? (
-                    <a
-                      href={getLocationLink(record.checkOutLocation)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 underline text-xs"
-                    >
-                      📍 Check-out Location
-                    </a>
-                  ) : (
-                    <span className="text-gray-400 text-xs">📍 No check-out location</span>
-                  )}
+              
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-600 font-medium">Check In</p>
+                  <p className="text-gray-900">{checkInTimes.length > 0 ? checkInTimes.join(', ') : 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600 font-medium">Check Out</p>
+                  <p className="text-gray-900">{checkOutTimes.length > 0 ? checkOutTimes.join(', ') : 'N/A'}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-gray-600 font-medium mb-1">Locations</p>
+                  <div className="flex flex-col space-y-1">
+                    {checkInLocations.map((record, idx) => (
+                      <a
+                        key={`in-${idx}`}
+                        href={getLocationLink(record.checkInLocation!)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline text-xs"
+                      >
+                        📍 Check-in Location {idx + 1}
+                      </a>
+                    ))}
+                    {checkOutLocations.map((record, idx) => (
+                      <a
+                        key={`out-${idx}`}
+                        href={getLocationLink(record.checkOutLocation!)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline text-xs"
+                      >
+                        📍 Check-out Location {idx + 1}
+                      </a>
+                    ))}
+                    {checkInLocations.length === 0 && checkOutLocations.length === 0 && (
+                      <span className="text-gray-400 text-xs">No locations</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {attendanceRecords.length === 0 && (
           <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
             No attendance records found.

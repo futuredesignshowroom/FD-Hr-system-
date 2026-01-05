@@ -18,12 +18,6 @@ export class AttendanceService {
     try {
       const now = new Date();
 
-      // Check if already checked in and not checked out (prevent multiple active sessions)
-      const currentIncompleteRecord = await this.getLastIncompleteRecord(userId);
-      if (currentIncompleteRecord) {
-        throw new Error('Already checked in. Please check out first before checking in again.');
-      }
-
       // Get current location - mandatory for check-in
       const location: LocationData = await getCurrentLocation();
       if (!location) {
