@@ -18,15 +18,9 @@ export class AttendanceService {
     try {
       const now = new Date();
 
-      // Check if already checked in today (any record for today)
-      const todayRecord = await this.getAttendanceByDate(userId, now);
-      if (todayRecord) {
-        throw new Error('Already checked in for today. You can only check in once per day.');
-      }
-
-      // Check if already checked in and not checked out (extra safety check)
-      const currentCheckIn = await this.getCurrentCheckIn(userId);
-      if (currentCheckIn) {
+      // Check if already checked in and not checked out (prevent multiple active sessions)
+      const currentIncompleteRecord = await this.getLastIncompleteRecord(userId);
+      if (currentIncompleteRecord) {
         throw new Error('Already checked in. Please check out first before checking in again.');
       }
 
@@ -86,60 +80,32 @@ export class AttendanceService {
         throw new Error('Location access is required for check-out. Please enable location services and try again.');
       }
 
-      // Find the most recent check-in record that doesn't have check-out yet
-      const currentCheckIn = await this.getCurrentCheckIn(userId);
+      // Find the last record for the current user where check_out is null or undefined
+      const lastIncompleteRecord = await this.getLastIncompleteRecord(userId);
 
-      if (currentCheckIn && currentCheckIn.id) {
-        // If there's an active check-in, update it with check-out
-        const updatedRecord = {
-          ...currentCheckIn,
-          checkOutTime: now,
-          checkOutLocation: location,
-          updatedAt: now,
-          status: 'present'
-        };
+      if (!lastIncompleteRecord || !lastIncompleteRecord.id) {
+        throw new Error('No active check-in found. Please check in first before checking out.');
+      }
 
-        await FirestoreDB.addDocument(this.COLLECTION, updatedRecord, currentCheckIn.id, true);
+      // Update the existing record with check-out time and location
+      const updateData = {
+        checkOutTime: now,
+        checkOutLocation: location,
+        updatedAt: now,
+        status: 'present'
+      };
 
-        // Create notification for admin
-        try {
-          const employee = await EmployeeService.getEmployeeProfile(userId);
-          const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee';
+      await FirestoreDB.updateDocument(this.COLLECTION, lastIncompleteRecord.id, updateData);
 
-          await NotificationService.createAttendanceNotification(currentCheckIn, employeeName, 'checkout');
-        } catch (notificationError) {
-          console.error('Error creating check-out notification:', notificationError);
-          // Don't fail the check-out if notification fails
-        }
-      } else {
-        // If no active check-in exists, create a new record with only check-out
-        const attendance: Attendance = {
-          id: '',
-          userId,
-          date: now,
-          checkOutTime: now,
-          checkOutLocation: location,
-          status: 'present', // Assume present if checking out
-          createdAt: now,
-          updatedAt: now,
-        };
+      // Create notification for admin
+      try {
+        const employee = await EmployeeService.getEmployeeProfile(userId);
+        const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee';
 
-        const docRef = await FirestoreDB.addDocument(
-          this.COLLECTION,
-          attendance
-        );
-        attendance.id = docRef.id;
-
-        // Create notification for admin
-        try {
-          const employee = await EmployeeService.getEmployeeProfile(userId);
-          const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee';
-
-          await NotificationService.createAttendanceNotification(attendance, employeeName, 'checkout');
-        } catch (notificationError) {
-          console.error('Error creating check-out notification:', notificationError);
-          // Don't fail the check-out if notification fails
-        }
+        await NotificationService.createAttendanceNotification(lastIncompleteRecord, employeeName, 'checkout');
+      } catch (notificationError) {
+        console.error('Error creating check-out notification:', notificationError);
+        // Don't fail the check-out if notification fails
       }
     } catch (error) {
       console.error('Error checking out:', error);
@@ -190,9 +156,9 @@ export class AttendanceService {
     }
   }
   /**
-   * Get the current active check-in record (most recent without check-out)
+   * Get the last incomplete attendance record (has check-in but no check-out)
    */
-  static async getCurrentCheckIn(userId: string): Promise<Attendance | null> {
+  static async getLastIncompleteRecord(userId: string): Promise<Attendance | null> {
     try {
       // Get recent records for the user (last 30 days to be safe)
       const thirtyDaysAgo = new Date();
@@ -208,43 +174,17 @@ export class AttendanceService {
         ]
       );
 
-      console.log('getCurrentCheckIn - Found', recentRecords.length, 'recent records for user:', userId);
-
-      // Filter for today's records in JavaScript (more reliable than Firestore date queries)
-      const today = new Date();
-      const todayStr = today.toDateString();
-
-      const todayRecords = recentRecords.filter((record) => {
-        let recordDate: Date;
-        if (record.date && typeof (record.date as any).toDate === 'function') {
-          recordDate = (record.date as any).toDate();
-        } else {
-          recordDate = new Date(record.date);
-        }
-        const recordDateStr = recordDate.toDateString();
-        return recordDateStr === todayStr;
-      });
-
-      console.log('getCurrentCheckIn - Found', todayRecords.length, 'records for today');
-
-      // Sort by createdAt descending (most recent first)
-      todayRecords.sort((a, b) => {
-        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return bTime - aTime;
-      });
-
-      // Find the most recent record that has check-in but no check-out
-      const activeRecord = todayRecords.find((record) => {
+      // Find records that have check-in but no check-out (checkOutTime is null, undefined, or empty)
+      const incompleteRecords = recentRecords.filter((record) => {
         const hasCheckIn = !!record.checkInTime;
         const hasCheckOut = !!(record.checkOutTime && record.checkOutTime !== null && record.checkOutTime !== undefined);
         return hasCheckIn && !hasCheckOut;
       });
 
-      console.log('getCurrentCheckIn - Active record found:', !!activeRecord, activeRecord?.id);
-      return activeRecord || null;
+      // Return the most recent incomplete record (first in the sorted list since we ordered by createdAt desc)
+      return incompleteRecords.length > 0 ? incompleteRecords[0] : null;
     } catch (error) {
-      console.error('Error getting current check-in:', error);
+      console.error('Error getting last incomplete record:', error);
       return null;
     }
   }
