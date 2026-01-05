@@ -236,7 +236,7 @@ export class AttendanceService {
       // Find the most recent record that has check-in but no check-out
       const activeRecord = todayRecords.find((record) => {
         const hasCheckIn = !!record.checkInTime;
-        const hasCheckOut = !!(record.checkOutTime && record.checkOutTime !== null && record.checkOutTime !== undefined && record.checkOutTime !== '');
+        const hasCheckOut = !!(record.checkOutTime && record.checkOutTime !== null && record.checkOutTime !== undefined);
         console.log('Checking record:', record.id, 'hasCheckIn:', hasCheckIn, 'hasCheckOut:', hasCheckOut, 'checkInTime:', record.checkInTime, 'checkOutTime:', record.checkOutTime);
         return hasCheckIn && !hasCheckOut;
       });
