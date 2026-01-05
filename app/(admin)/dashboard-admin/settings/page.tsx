@@ -11,6 +11,8 @@ export default function AdminSettingsPage() {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [cleaningData, setCleaningData] = useState(false);
+  const [initializing, setInitializing] = useState(false);
   const toast = useToast();
 
   // Local state for form inputs
@@ -88,6 +90,54 @@ export default function AdminSettingsPage() {
       toast.show('Failed to save settings', { type: 'error' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCleanData = async () => {
+    if (!confirm('Are you sure you want to clean ALL data? This action cannot be undone!')) {
+      return;
+    }
+
+    setCleaningData(true);
+    try {
+      const response = await fetch('/api/clean-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.show('Data cleaned successfully', { type: 'success' });
+        console.log('Clean results:', result.results);
+      } else {
+        throw new Error(result.error || 'Failed to clean data');
+      }
+    } catch (error) {
+      console.error('Error cleaning data:', error);
+      toast.show('Failed to clean data', { type: 'error' });
+    } finally {
+      setCleaningData(false);
+    }
+  };
+
+  const handleInitializeDefaults = async () => {
+    setInitializing(true);
+    try {
+      // Initialize leave policies
+      await fetch('/api/leave-policies/init', { method: 'POST' });
+
+      // Initialize salary configs for existing employees
+      await fetch('/api/salary-configs/init', { method: 'POST' });
+
+      toast.show('Default data initialized successfully', { type: 'success' });
+    } catch (error) {
+      console.error('Error initializing defaults:', error);
+      toast.show('Failed to initialize defaults', { type: 'error' });
+    } finally {
+      setInitializing(false);
     }
   };
 
@@ -174,6 +224,35 @@ export default function AdminSettingsPage() {
               className="border border-gray-300 rounded px-3 py-2"
             />
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-bold mb-6 text-red-600">⚠️ Data Management (Development Only)</h2>
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600 mb-4">
+            These options are only available in development mode and will permanently delete data.
+          </p>
+          <div className="flex gap-4">
+            <Button
+              onClick={handleCleanData}
+              disabled={cleaningData}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {cleaningData ? 'Cleaning...' : 'Clean All Data'}
+            </Button>
+            <Button
+              onClick={handleInitializeDefaults}
+              disabled={initializing}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {initializing ? 'Initializing...' : 'Initialize Defaults'}
+            </Button>
+          </div>
+          <p className="text-xs text-gray-500">
+            Clean All Data: Removes all attendance, leave, salary, and employee records.<br/>
+            Initialize Defaults: Sets up default leave policies and salary configurations.
+          </p>
         </div>
       </div>
 
