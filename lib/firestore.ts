@@ -121,7 +121,8 @@ export class FirestoreDB {
   static async addDocument<T extends Record<string, any>>(
     collectionName: string,
     data: T,
-    docId?: string
+    docId?: string,
+    merge: boolean = false
   ): Promise<DocumentReference> {
     if (!db) {
       throw new Error('Firebase not initialized. Please check your environment variables.');
@@ -132,7 +133,7 @@ export class FirestoreDB {
       if (docId) {
         const docRef = doc(collectionRef, docId);
         await withRetry(() =>
-          setDoc(docRef, this.prepareData(data))
+          setDoc(docRef, this.prepareData(data), { merge })
         );
         return docRef;
       } else {
