@@ -18,7 +18,13 @@ export class AttendanceService {
     try {
       const now = new Date();
 
-      // Check if already checked in and not checked out
+      // Check if already checked in today (any record for today)
+      const todayRecord = await this.getAttendanceByDate(userId, now);
+      if (todayRecord) {
+        throw new Error('Already checked in for today. You can only check in once per day.');
+      }
+
+      // Check if already checked in and not checked out (extra safety check)
       const currentCheckIn = await this.getCurrentCheckIn(userId);
       if (currentCheckIn) {
         throw new Error('Already checked in. Please check out first before checking in again.');
