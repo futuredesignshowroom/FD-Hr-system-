@@ -175,9 +175,9 @@ export class AttendanceService {
 
       const matchingRecord = records.find((record) => {
         let recordDate: Date;
-        if (record.date && typeof record.date.toDate === 'function') {
+        if (record.date && typeof (record.date as any).toDate === 'function') {
           // Firestore Timestamp
-          recordDate = record.date.toDate();
+          recordDate = (record.date as any).toDate();
         } else {
           // Regular Date
           recordDate = new Date(record.date);
