@@ -85,18 +85,15 @@ export class AttendanceService {
 
       if (currentCheckIn && currentCheckIn.id) {
         // If there's an active check-in, update it with check-out
-        const updateData: any = {
+        const updatedRecord = {
+          ...currentCheckIn,
           checkOutTime: now,
           checkOutLocation: location,
           updatedAt: now,
-          // Ensure we preserve the existing check-in data
-          checkInTime: currentCheckIn.checkInTime,
-          checkInLocation: currentCheckIn.checkInLocation,
-          date: currentCheckIn.date,
           status: 'present'
         };
 
-        await FirestoreDB.updateDocument(this.COLLECTION, currentCheckIn.id, updateData);
+        await FirestoreDB.addDocument(this.COLLECTION, updatedRecord, currentCheckIn.id);
 
         // Create notification for admin
         try {
@@ -184,26 +181,34 @@ export class AttendanceService {
    */
   static async getCurrentCheckIn(userId: string): Promise<Attendance | null> {
     try {
-      // Get all attendance records for the user (limit to recent ones for performance)
-      const allRecords = await FirestoreDB.queryCollection<Attendance>(
+      // Get today's records first, then sort and find active check-in
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const todayRecords = await FirestoreDB.queryCollection<Attendance>(
         this.COLLECTION,
         [
           where('userId', '==', userId),
-          orderBy('createdAt', 'desc'),
-          limit(100) // Get last 100 records
+          where('date', '>=', today),
+          where('date', '<', tomorrow)
         ]
       );
 
-      // Sort records by createdAt descending and find the active check-in
-      allRecords.sort((a, b) => {
+      // Sort by createdAt descending
+      todayRecords.sort((a, b) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return bTime - aTime;
       });
 
       // Find the most recent record that has check-in but no check-out
-      const activeRecord = allRecords.find((record) => {
-        return record.checkInTime && !record.checkOutTime;
+      const activeRecord = todayRecords.find((record) => {
+        return record.checkInTime && 
+               (record.checkOutTime === null || 
+                record.checkOutTime === undefined || 
+                record.checkOutTime === '');
       });
 
       return activeRecord || null;

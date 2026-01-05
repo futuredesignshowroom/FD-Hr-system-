@@ -1,5 +1,6 @@
 // tools/clean_leave_data.js - Clean all leave-related data
 
+require('dotenv').config({ path: '../.env.local' });
 const admin = require('firebase-admin');
 const fs = require('fs');
 
