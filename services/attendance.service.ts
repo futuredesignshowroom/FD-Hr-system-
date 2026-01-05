@@ -72,6 +72,8 @@ export class AttendanceService {
    */
   static async checkOut(userId: string): Promise<void> {
     try {
+      console.log('checkOut called for userId:', userId);
+
       const now = new Date();
 
       // Get current location - required for check-out
@@ -82,6 +84,7 @@ export class AttendanceService {
 
       // Find the last record for the current user where check_out is null or undefined
       const lastIncompleteRecord = await this.getLastIncompleteRecord(userId);
+      console.log('checkOut - lastIncompleteRecord:', lastIncompleteRecord?.id || 'null');
 
       if (!lastIncompleteRecord || !lastIncompleteRecord.id) {
         throw new Error('No active check-in found. Please check in first before checking out.');
@@ -95,6 +98,7 @@ export class AttendanceService {
         status: 'present'
       };
 
+      console.log('checkOut - Updating record', lastIncompleteRecord.id, 'with data:', updateData);
       await FirestoreDB.updateDocument(this.COLLECTION, lastIncompleteRecord.id, updateData);
 
       // Create notification for admin
@@ -160,6 +164,8 @@ export class AttendanceService {
    */
   static async getLastIncompleteRecord(userId: string): Promise<Attendance | null> {
     try {
+      console.log('getLastIncompleteRecord called for userId:', userId);
+
       // Get recent records for the user (last 30 days to be safe)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -174,15 +180,22 @@ export class AttendanceService {
         ]
       );
 
+      console.log('getLastIncompleteRecord - Found', recentRecords.length, 'recent records for user:', userId);
+
       // Find records that have check-in but no check-out (checkOutTime is null, undefined, or empty)
       const incompleteRecords = recentRecords.filter((record) => {
         const hasCheckIn = !!record.checkInTime;
         const hasCheckOut = !!(record.checkOutTime && record.checkOutTime !== null && record.checkOutTime !== undefined);
+        console.log('Record', record.id, '- hasCheckIn:', hasCheckIn, 'hasCheckOut:', hasCheckOut, 'checkOutTime:', record.checkOutTime);
         return hasCheckIn && !hasCheckOut;
       });
 
+      console.log('getLastIncompleteRecord - Found', incompleteRecords.length, 'incomplete records');
+
       // Return the most recent incomplete record (first in the sorted list since we ordered by createdAt desc)
-      return incompleteRecords.length > 0 ? incompleteRecords[0] : null;
+      const result = incompleteRecords.length > 0 ? incompleteRecords[0] : null;
+      console.log('getLastIncompleteRecord - Returning record:', result?.id || 'null');
+      return result;
     } catch (error) {
       console.error('Error getting last incomplete record:', error);
       return null;
