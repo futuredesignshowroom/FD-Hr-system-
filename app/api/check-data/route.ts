@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FirestoreDB } from '@/lib/firestore';
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     console.log('Checking current data...');
 

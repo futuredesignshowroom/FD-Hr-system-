@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FirestoreDB } from '@/lib/firestore';
 
-export async function POST(_request: NextRequest) {
+export async function POST() {
   try {
     // Only allow in development or with proper authentication
     if (process.env.NODE_ENV === 'production') {

@@ -6,6 +6,7 @@ import { EmployeeService } from '@/services/employee.service';
 import { Attendance, AttendanceStatus } from '@/types/attendance';
 import { safeDateToISOString, safeGetTime } from '@/utils/date';
 import { getLocationLink } from '@/utils/location';
+import Image from 'next/image';
 
 import Loader from '@/components/ui/Loader';
 import { ReportsService } from '@/services/reports.service';
@@ -454,9 +455,11 @@ export default function AdminAttendancePage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
                         {record.avatar ? (
-                          <img
+                          <Image
                             src={record.avatar}
                             alt={record.employeeName}
+                            width={32}
+                            height={32}
                             className="w-8 h-8 rounded-full object-cover"
                           />
                         ) : (

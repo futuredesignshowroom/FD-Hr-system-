@@ -22,11 +22,7 @@ export default function AdminLeavesPage() {
   const [rejectionReason, setRejectionReason] = useState('');
   const { user } = useAuthStore();
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       await loadEmployees();
@@ -35,7 +31,11 @@ export default function AdminLeavesPage() {
       console.error('Error loading data:', error);
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const loadLeaveRequests = async () => {
     try {
