@@ -38,7 +38,7 @@ export default function AdminAttendancePage() {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceWithEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>('all');
   const [monthlyAttendance, setMonthlyAttendance] = useState<MonthlyAttendanceEmployee[]>([]);
   const [monthlyLoading, setMonthlyLoading] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
@@ -61,6 +61,7 @@ export default function AdminAttendancePage() {
       // Filter attendance by selected date and add employee info
       let filteredAttendance = allAttendance
         .filter(record => {
+          if (selectedDate === 'all') return true; // Show all records
           const recordDate = safeDateToISOString(record.date);
           return recordDate === selectedDate;
         })
@@ -158,7 +159,7 @@ export default function AdminAttendancePage() {
     }
   };
 
-  const getTodayStats = () => {
+  const getStats = () => {
     const present = attendanceRecords.filter(r => r.status === 'present').length;
     const absent = attendanceRecords.filter(r => r.status === 'absent').length;
     const halfDay = attendanceRecords.filter(r => r.status === 'half-day').length;
@@ -273,7 +274,7 @@ export default function AdminAttendancePage() {
     document.body.removeChild(link);
   };
 
-  const stats = getTodayStats();
+  const stats = getStats();
 
   return (
     <div className="space-y-6">
@@ -311,12 +312,23 @@ export default function AdminAttendancePage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Select Date
                 </label>
-                <input
-                  type="date"
+                <select
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   className="border border-gray-300 rounded px-3 py-2"
-                />
+                >
+                  <option value="all">All Records</option>
+                  <option value={new Date().toISOString().split('T')[0]}>Today</option>
+                  <option value={new Date(Date.now() - 86400000).toISOString().split('T')[0]}>Yesterday</option>
+                </select>
+                {selectedDate !== 'all' && (
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="border border-gray-300 rounded px-3 py-2 mt-2"
+                  />
+                )}
               </div>
               <div className="flex items-end">
                 <button
@@ -392,19 +404,19 @@ export default function AdminAttendancePage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-gray-500 text-sm font-semibold mb-2">
-                Present Today
+                Present {selectedDate === 'all' ? 'Total' : 'Today'}
               </h3>
               <p className="text-2xl font-bold text-green-600">{stats.present}</p>
             </div>
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-gray-500 text-sm font-semibold mb-2">
-                Absent Today
+                Absent {selectedDate === 'all' ? 'Total' : 'Today'}
               </h3>
               <p className="text-2xl font-bold text-red-600">{stats.absent}</p>
             </div>
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-gray-500 text-sm font-semibold mb-2">
-                Half Day
+                Half Day {selectedDate === 'all' ? 'Total' : 'Today'}
               </h3>
               <p className="text-2xl font-bold text-yellow-600">{stats.halfDay}</p>
             </div>
@@ -418,7 +430,9 @@ export default function AdminAttendancePage() {
 
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold">Daily Attendance Records</h2>
+              <h2 className="text-lg font-semibold">
+                {selectedDate === 'all' ? 'All Attendance Records' : `Daily Attendance Records - ${selectedDate}`}
+              </h2>
             </div>
             <table className="w-full text-sm">
               <thead className="bg-gray-100">

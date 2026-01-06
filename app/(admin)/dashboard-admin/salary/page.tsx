@@ -198,14 +198,12 @@ export default function AdminSalaryPage() {
         return;
       }
 
-      // Generate salary based on config
-      await SalaryService.calculateAndCreateSalary(
+      // Generate salary based on config and attendance
+      await SalaryService.calculateAndUpsertCurrentMonthSalary(
         employee.id,
         currentMonth,
         currentYear,
-        employee.salaryConfig.baseSalary,
-        employee.salaryConfig.allowances,
-        [] // No deductions for now
+        employee.salaryConfig
       );
 
       alert('Salary generated successfully for ' + (employee.firstName + ' ' + employee.lastName).trim());
