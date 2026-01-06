@@ -4,12 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { AttendanceService } from '@/services/attendance.service';
 import { EmployeeService } from '@/services/employee.service';
 import { Attendance, AttendanceStatus } from '@/types/attendance';
-import { safeDateToISOString, safeGetTime, convertFirestoreDates } from '@/utils/date';
+import { safeDateToISOString, safeGetTime } from '@/utils/date';
 import { getLocationLink } from '@/utils/location';
 
 import Loader from '@/components/ui/Loader';
-import { collection, onSnapshot, query } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { ReportsService } from '@/services/reports.service';
 
 interface AttendanceWithEmployee extends Attendance {
@@ -38,7 +36,6 @@ interface MonthlyAttendanceEmployee {
 
 export default function AdminAttendancePage() {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceWithEmployee[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -128,105 +125,8 @@ export default function AdminAttendancePage() {
   }, [currentYear, currentMonth]);
 
   useEffect(() => {
-    let unsubscribeEmployees: (() => void) | null = null;
-    let unsubscribeAttendance: (() => void) | null = null;
-
-    const init = async () => {
-      try {
-        // Load employees first
-        await loadEmployees();
-
-        if (!db) {
-          setError('Firebase not initialized');
-          setLoading(false);
-          return;
-        }
-
-        // Real-time listener for employees
-        const employeeQuery = query(collection(db, 'employees'));
-        unsubscribeEmployees = onSnapshot(employeeQuery, (snapshot) => {
-          const allEmployees = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...convertFirestoreDates(doc.data())
-          })) as Employee[];
-          setEmployees(allEmployees);
-        }, (error) => {
-          console.error('Error listening to employees:', error);
-        });
-
-        // Real-time listener for attendance records
-        const attendanceQuery = query(collection(db, 'attendance'));
-        unsubscribeAttendance = onSnapshot(attendanceQuery, (snapshot) => {
-          const allAttendance = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...convertFirestoreDates(doc.data())
-          })) as Attendance[];
-
-          // Filter attendance by selected date and add employee info
-          let filteredAttendance = allAttendance
-            .filter(record => {
-              const recordDate = safeDateToISOString(record.date);
-              return recordDate === selectedDate;
-            })
-            .map(record => {
-              const employee = employees.find(emp => emp.id === record.userId);
-              return {
-                ...record,
-                employeeName: ((employee?.firstName || '') + ' ' + (employee?.lastName || '')).trim() || 'Unknown',
-                employeeEmail: employee?.email || 'Unknown',
-                employeeId: employee?.employeeId || 'N/A',
-                department: employee?.department || 'N/A',
-                position: employee?.position || 'N/A',
-                phone: employee?.phone,
-                employeeStatus: employee?.status || 'inactive',
-                avatar: employee?.avatar,
-              };
-            })
-            .sort((a, b) => safeGetTime(b.createdAt) - safeGetTime(a.createdAt));
-
-          // Apply search and filter
-          if (searchTerm) {
-            filteredAttendance = filteredAttendance.filter(record =>
-              record.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              record.employeeEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              record.employeeId.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-          }
-
-          if (departmentFilter) {
-            filteredAttendance = filteredAttendance.filter(record =>
-              record.department === departmentFilter
-            );
-          }
-
-          if (statusFilter) {
-            filteredAttendance = filteredAttendance.filter(record =>
-              record.employeeStatus === statusFilter
-            );
-          }
-
-          setAttendanceRecords(filteredAttendance);
-          setLoading(false);
-          setError('');
-        }, (error) => {
-          console.error('Error listening to attendance:', error);
-          setError('Failed to load attendance data');
-          setLoading(false);
-        });
-      } catch (err) {
-        console.error('Error initializing:', err);
-        setError('Failed to initialize');
-        setLoading(false);
-      }
-    };
-
-    init();
-
-    return () => {
-      if (unsubscribeEmployees) unsubscribeEmployees();
-      if (unsubscribeAttendance) unsubscribeAttendance();
-    };
-  }, [selectedDate, searchTerm, departmentFilter, statusFilter]);
+    loadData();
+  }, [loadData]);
 
   useEffect(() => {
     if (viewMode === 'monthly') {
@@ -234,17 +134,8 @@ export default function AdminAttendancePage() {
     }
   }, [viewMode, loadMonthlyData]);
 
-  const loadEmployees = async () => {
-    try {
-      const allEmployees = await EmployeeService.getAllEmployees();
-      setEmployees(allEmployees);
-    } catch (err) {
-      console.error('Error loading employees:', err);
-    }
-  };
-
   const getUniqueDepartments = () => {
-    const departments = employees.map(emp => emp.department).filter(Boolean);
+    const departments = attendanceRecords.map(record => record.department).filter(Boolean);
     return [...new Set(departments)];
   };
 
@@ -426,6 +317,15 @@ export default function AdminAttendancePage() {
                   onChange={(e) => setSelectedDate(e.target.value)}
                   className="border border-gray-300 rounded px-3 py-2"
                 />
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={loadData}
+                  disabled={loading}
+                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Refreshing...' : '🔄 Refresh'}
+                </button>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -10,8 +10,6 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { useAuthStore } from '@/store/auth.store';
-import { collection, onSnapshot, query } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 
 export default function AdminLeavesPage() {
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
@@ -25,37 +23,30 @@ export default function AdminLeavesPage() {
   const { user } = useAuthStore();
 
   useEffect(() => {
-    loadEmployees();
-
-    if (!db) {
-      console.error('Firebase not initialized');
-      setLoading(false);
-      return;
-    }
-
-    // Real-time listener for leave requests
-    const leaveQuery = query(collection(db, 'leaves'));
-    const unsubscribeLeaves = onSnapshot(leaveQuery, (snapshot) => {
-      const requests = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          startDate: data.startDate?.toDate ? data.startDate.toDate() : new Date(data.startDate),
-          endDate: data.endDate?.toDate ? data.endDate.toDate() : new Date(data.endDate),
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
-          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt),
-        };
-      }) as LeaveRequest[];
-      setLeaveRequests(requests);
-      setLoading(false);
-    }, (error) => {
-      console.error('Error listening to leave requests:', error);
-      setLoading(false);
-    });
-
-    return () => unsubscribeLeaves();
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      await loadEmployees();
+      await loadLeaveRequests();
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setLoading(false);
+    }
+  };
+
+  const loadLeaveRequests = async () => {
+    try {
+      const requests = await LeaveService.getAllLeaveRequests();
+      setLeaveRequests(requests);
+    } catch (error) {
+      console.error('Error loading leave requests:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadEmployees = async () => {
     try {
@@ -79,6 +70,7 @@ export default function AdminLeavesPage() {
     setProcessing(requestId);
     try {
       await LeaveService.approveLeave(requestId, user?.id);
+      await loadLeaveRequests(); // Refresh data after approval
     } catch (error) {
       console.error('Error approving leave:', error);
       alert('Failed to approve leave request');
@@ -96,6 +88,7 @@ export default function AdminLeavesPage() {
       setShowRejectModal(false);
       setRejectionReason('');
       setSelectedRequest(null);
+      await loadLeaveRequests(); // Refresh data after rejection
     } catch (error) {
       console.error('Error rejecting leave:', error);
       alert('Failed to reject leave request');
@@ -140,6 +133,13 @@ export default function AdminLeavesPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Leave Management</h1>
         <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={loadData}
+            disabled={loading}
+          >
+            {loading ? 'Refreshing...' : '🔄 Refresh'}
+          </Button>
           <Button
             variant={filter === 'all' ? 'primary' : 'secondary'}
             onClick={() => setFilter('all')}

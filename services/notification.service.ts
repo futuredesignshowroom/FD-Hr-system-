@@ -225,7 +225,8 @@ export class NotificationService {
    */
   static async createAttendanceNotification(attendance: any, employeeName: string, action: 'checkin' | 'checkout'): Promise<void> {
     try {
-      const adminUsers = ['admin'];
+      // Get all admin users
+      const adminUsers = await this.getAdminUsers();
 
       const notificationPromises = adminUsers.map(adminId =>
         this.createNotification({
