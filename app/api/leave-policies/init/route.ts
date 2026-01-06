@@ -1,6 +1,6 @@
 // app/api/leave-policies/init/route.ts - Initialize default leave policies
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { LeaveConfigService } from '@/services/leave-config.service';
 
 export async function POST() {

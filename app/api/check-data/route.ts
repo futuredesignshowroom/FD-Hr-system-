@@ -1,6 +1,6 @@
 // app/api/check-data/route.ts - API endpoint to check current data
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { FirestoreDB } from '@/lib/firestore';
 
 export async function GET() {

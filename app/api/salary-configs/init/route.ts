@@ -1,6 +1,6 @@
 // app/api/salary-configs/init/route.ts - Initialize salary configurations for employees
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { SalaryService } from '@/services/salary.service';
 import { EmployeeService } from '@/services/employee.service';
 import { SalaryConfig } from '@/types/salary';

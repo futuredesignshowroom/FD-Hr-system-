@@ -1,6 +1,6 @@
 // app/api/clean-data/route.ts - API endpoint to clean all data
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { FirestoreDB } from '@/lib/firestore';
 
 export async function POST() {

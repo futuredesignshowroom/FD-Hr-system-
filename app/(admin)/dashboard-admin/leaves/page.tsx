@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { LeaveService } from '@/services/leave.service';
 import { EmployeeService } from '@/services/employee.service';
 import { LeaveRequest } from '@/types/leave';
