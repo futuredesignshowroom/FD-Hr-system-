@@ -18,10 +18,13 @@ export class AttendanceService {
     try {
       const now = new Date();
 
-      // Get current location - mandatory for check-in
-      const location: LocationData = await getCurrentLocation();
-      if (!location) {
-        throw new Error('Location access is required for check-in. Please enable location services and try again.');
+      // Get current location - optional for check-in
+      let location: LocationData | undefined;
+      try {
+        location = await getCurrentLocation();
+      } catch (locationError) {
+        console.warn('Location not available for check-in:', locationError);
+        // Continue without location
       }
 
       const attendance: Attendance = {
@@ -35,7 +38,9 @@ export class AttendanceService {
       };
 
       // Only add location if we got it
-      attendance.checkInLocation = location;
+      if (location) {
+        attendance.checkInLocation = location;
+      }
 
       const docRef = await FirestoreDB.addDocument(
         this.COLLECTION,
@@ -70,10 +75,13 @@ export class AttendanceService {
 
       const now = new Date();
 
-      // Get current location - required for check-out
-      const location: LocationData = await getCurrentLocation();
-      if (!location) {
-        throw new Error('Location access is required for check-out. Please enable location services and try again.');
+      // Get current location - optional for check-out
+      let location: LocationData | undefined;
+      try {
+        location = await getCurrentLocation();
+      } catch (locationError) {
+        console.warn('Location not available for check-out:', locationError);
+        // Continue without location
       }
 
       // Find the last record for the current user where check_out is null or undefined
@@ -115,7 +123,9 @@ export class AttendanceService {
         };
 
         // Only add location if we got it
-        attendance.checkOutLocation = location;
+        if (location) {
+          attendance.checkOutLocation = location;
+        }
 
         const docRef = await FirestoreDB.addDocument(
           this.COLLECTION,

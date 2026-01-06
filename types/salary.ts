@@ -34,6 +34,7 @@ export interface SalaryConfig {
   userId: string;
   baseSalary: number;
   allowances: Allowance[];
+  deductions?: Deduction[];
   totalLeavesAllowed: number;
   workingDaysPerMonth: number;
   createdAt: Date;

@@ -299,12 +299,11 @@ export class SalaryService {
       const attendanceService = await import('./attendance.service');
       const attendanceRecord = await attendanceService.AttendanceService.getMonthlyAttendance(userId, month - 1, year);
 
-      // Calculate working days in month
-      const daysInMonth = new Date(year, month, 0).getDate();
-      const workingDays = Math.min(26, daysInMonth);
+      // Calculate working days in month (assuming 26 working days per month)
+      const workingDays = 26;
 
-      // Calculate absent days
-      const absentDays = workingDays - attendanceRecord.presentDays;
+      // Calculate absent days (working days minus present days)
+      const absentDays = Math.max(0, workingDays - attendanceRecord.presentDays);
 
       // Calculate per day salary
       const perDaySalary = config.baseSalary / workingDays;
@@ -317,34 +316,39 @@ export class SalaryService {
         reason: 'absent',
       };
 
-      const deductions = [absentDeduction];
+      // Add existing deductions from config (if any)
+      const configDeductions = config.deductions || [];
+      const allDeductions = [absentDeduction, ...configDeductions];
 
       const calculations = SalaryCalculator.calculateFullSalary(
         config.baseSalary,
         config.allowances,
-        deductions
+        allDeductions
       );
+
+      const salaryData = {
+        userId,
+        month,
+        year,
+        baseSalary: config.baseSalary,
+        allowances: config.allowances,
+        deductions: allDeductions,
+        perDaySalary: calculations.perDaySalary,
+        totalAllowances: calculations.totalAllowances,
+        totalDeductions: calculations.totalDeductions,
+        netSalary: calculations.netSalary,
+        paymentStatus: 'pending' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
       if (existing) {
         await this.updateSalary(existing.id, {
-          baseSalary: config.baseSalary,
-          allowances: config.allowances,
-          deductions,
-          perDaySalary: calculations.perDaySalary,
-          totalAllowances: calculations.totalAllowances,
-          totalDeductions: calculations.totalDeductions,
-          netSalary: calculations.netSalary,
+          ...salaryData,
           updatedAt: new Date(),
         });
       } else {
-        await this.calculateAndCreateSalary(
-          userId,
-          month,
-          year,
-          config.baseSalary,
-          config.allowances,
-          []
-        );
+        await this.createSalary(salaryData as Salary);
       }
     } catch (error) {
       console.error('Error upserting current month salary:', error);
