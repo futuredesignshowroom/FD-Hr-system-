@@ -379,7 +379,7 @@ export default function AdminAttendancePage() {
                   <option value="">All Statuses</option>
                   {getUniqueStatuses().map(status => (
                     <option key={status} value={status}>
-                      {status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
+                      {status ? status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ') : 'Unknown'}
                     </option>
                   ))}
                 </select>
@@ -487,7 +487,7 @@ export default function AdminAttendancePage() {
                     <td className="px-6 py-4 text-sm">{record.position}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded text-xs ${getStatusBadgeColor(record.employeeStatus)}`}>
-                        {record.employeeStatus.charAt(0).toUpperCase() + record.employeeStatus.slice(1).replace('-', ' ')}
+                        {record.employeeStatus ? record.employeeStatus.charAt(0).toUpperCase() + record.employeeStatus.slice(1).replace('-', ' ') : 'Unknown'}
                       </span>
                     </td>
                     <td className="px-6 py-4">{formatTime(record.checkInTime)}</td>
@@ -638,7 +638,7 @@ export default function AdminAttendancePage() {
                     <td className="px-6 py-4 text-sm">{employee.position}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded text-xs ${getStatusBadgeColor(employee.status)}`}>
-                        {employee.status.charAt(0).toUpperCase() + employee.status.slice(1).replace('-', ' ')}
+                        {employee.status ? employee.status.charAt(0).toUpperCase() + employee.status.slice(1).replace('-', ' ') : 'Unknown'}
                       </span>
                     </td>
                     <td className="px-6 py-4 font-semibold text-green-600">
