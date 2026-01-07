@@ -149,21 +149,12 @@ export default function AdminDashboard() {
         console.error('Error listening to users:', error);
       });
 
-      // Real-time listener for messages (if we want to track new messages)
-      const messagesQuery = query(collection(db, 'messages'));
-      const unsubscribeMessages = onSnapshot(messagesQuery, () => {
-        fetchActivities();
-      }, (error) => {
-        console.error('Error listening to messages:', error);
-      });
-
       return () => {
         unsubscribeEmployees();
         unsubscribeAttendance();
         unsubscribeLeaves();
         unsubscribeSalaries();
         unsubscribeUsers();
-        unsubscribeMessages();
       };
     });
 
