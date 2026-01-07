@@ -161,6 +161,30 @@ export class LeaveService {
         // Don't fail the approval if balance update fails
       }
 
+      // Trigger salary recalculation for all months affected by this approved leave
+      try {
+        const salaryModule = await import('./salary.service');
+        const SalaryService = salaryModule.SalaryService;
+        const config = await SalaryService.getSalaryConfig(leaveRequest.userId);
+        if (config) {
+          // iterate months between start and end (inclusive)
+          let iter = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+          const endIter = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+          while (iter <= endIter) {
+            const month = iter.getMonth() + 1;
+            const year = iter.getFullYear();
+            try {
+              await SalaryService.calculateAndUpsertCurrentMonthSalary(leaveRequest.userId, month, year, config);
+            } catch (recErr) {
+              console.error('Error recalculating salary after leave approval for', leaveRequest.userId, month, year, recErr);
+            }
+            iter.setMonth(iter.getMonth() + 1);
+          }
+        }
+      } catch (recTriggerErr) {
+        console.error('Error triggering salary recalculation after leave approval:', recTriggerErr);
+      }
+
     } catch (error) {
       console.error('Error approving leave:', error);
       throw error;

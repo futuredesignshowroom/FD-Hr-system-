@@ -29,32 +29,27 @@ export default function EmployeeLeavesPage() {
     reason: '',
   });
 
-  const loadData = useCallback(async () => {
+  const initializeLeaveBalances = useCallback(async () => {
     if (!user) return;
 
     try {
-      setLoading(true);
-      const [requests, balances, policiesInitial] = await Promise.all([
-        LeaveService.getUserLeaveRequests(user.id),
-        LeaveConfigService.getUserLeaveBalance(user.id),
+      const currentYear = new Date().getFullYear();
+      const [balances, policies] = await Promise.all([
+        LeaveConfigService.getUserLeaveBalance(user.id, currentYear),
         LeaveConfigService.getLeavePolicies()
       ]);
 
-      let policies = policiesInitial;
-
       // Initialize default policies if none exist
-      if (policies.length === 0) {
+      let finalPolicies = policies;
+      if (finalPolicies.length === 0) {
         await LeaveConfigService.initializeDefaultPolicies();
-        policies = await LeaveConfigService.getLeavePolicies();
+        finalPolicies = await LeaveConfigService.getLeavePolicies();
       }
 
-      setLeaveRequests(requests);
-
       // If no balances exist, initialize them based on policies
-      if (balances.length === 0 && policies.length > 0) {
+      if (balances.length === 0 && finalPolicies.length > 0) {
         console.log('No leave balances found, initializing...');
-        const currentYear = new Date().getFullYear();
-        const newBalances: LeaveBalance[] = policies.map(policy => ({
+        const newBalances: LeaveBalance[] = finalPolicies.map(policy => ({
           userId: user.id,
           leaveType: policy.leaveType as LeaveType,
           totalAllowed: policy.allowedDaysPerYear,
@@ -75,35 +70,7 @@ export default function EmployeeLeavesPage() {
         setLeaveBalances(balances);
       }
     } catch (error) {
-      console.error('Error loading leave data:', error);
-      // Try to initialize policies and balances even if loading fails
-      try {
-        let policies = await LeaveConfigService.getLeavePolicies();
-        if (policies.length === 0) {
-          await LeaveConfigService.initializeDefaultPolicies();
-          policies = await LeaveConfigService.getLeavePolicies();
-        }
-        if (policies.length > 0) {
-          const currentYear = new Date().getFullYear();
-          const newBalances: LeaveBalance[] = policies.map(policy => ({
-            userId: user.id,
-            leaveType: policy.leaveType as LeaveType,
-            totalAllowed: policy.allowedDaysPerYear,
-            used: 0,
-            remaining: policy.allowedDaysPerYear,
-            carryForward: 0,
-            year: currentYear,
-          }));
-
-          await Promise.all(
-            newBalances.map(balance => LeaveConfigService.setUserLeaveBalance(balance))
-          );
-
-          setLeaveBalances(newBalances);
-        }
-      } catch (initError) {
-        console.error('Error initializing leave balances:', initError);
-      }
+      console.error('Error initializing leave balances:', error);
     } finally {
       setLoading(false);
     }
@@ -111,7 +78,7 @@ export default function EmployeeLeavesPage() {
 
   useEffect(() => {
     if (user) {
-      loadData();
+      initializeLeaveBalances();
 
       // Set up real-time listeners for employee's leave data
       if (!db) {
@@ -154,32 +121,6 @@ export default function EmployeeLeavesPage() {
             year: doc.data().year || currentYear,
           })) as LeaveBalance[];
           setLeaveBalances(balances);
-        } else {
-          // If no balances exist, try to initialize them
-          LeaveConfigService.getLeavePolicies().then(policies => {
-            if (policies.length > 0) {
-              const newBalances: LeaveBalance[] = policies.map(policy => ({
-                userId: user.id,
-                leaveType: policy.leaveType as LeaveType,
-                totalAllowed: policy.allowedDaysPerYear,
-                used: 0,
-                remaining: policy.allowedDaysPerYear,
-                carryForward: 0,
-                year: currentYear,
-              }));
-
-              // Save the new balances
-              Promise.all(
-                newBalances.map(balance => LeaveConfigService.setUserLeaveBalance(balance))
-              ).then(() => {
-                setLeaveBalances(newBalances);
-              }).catch(error => {
-                console.error('Error initializing leave balances:', error);
-              });
-            }
-          }).catch(error => {
-            console.error('Error fetching leave policies:', error);
-          });
         }
       }, (error) => {
         console.error('Error listening to leave balances:', error);
@@ -218,9 +159,7 @@ export default function EmployeeLeavesPage() {
               newBalances.map(balance => LeaveConfigService.setUserLeaveBalance(balance))
             );
 
-            // Refresh balances
-            const updatedBalances = await LeaveConfigService.getUserLeaveBalance(user.id, currentYear);
-            setLeaveBalances(updatedBalances);
+            // The real-time listener will automatically update the state
           }
         }
       }, (error) => {
@@ -235,7 +174,7 @@ export default function EmployeeLeavesPage() {
     }
 
     return () => {}; // Return empty cleanup function when no user
-  }, [user, loadData]);
+  }, [user, initializeLeaveBalances]);
 
   const getLeaveTypeOptions = () => {
     return leaveBalances.map(balance => ({
@@ -344,7 +283,6 @@ export default function EmployeeLeavesPage() {
         reason: '',
       });
         setFormErrors({});
-        await loadData(); // Refresh the list
         // show global toast
         toast.show('Leave request submitted successfully', { type: 'success', duration: 4000 });
     } catch (error) {

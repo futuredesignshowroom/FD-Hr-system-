@@ -166,7 +166,8 @@ export class SalaryService {
       const calculations = SalaryCalculator.calculateFullSalary(
         baseSalary,
         allowances,
-        allDeductions
+        allDeductions,
+        workingDays
       );
 
       const salary: Salary = {
@@ -299,8 +300,8 @@ export class SalaryService {
       const attendanceService = await import('./attendance.service');
       const attendanceRecord = await attendanceService.AttendanceService.getMonthlyAttendance(userId, month - 1, year);
 
-      // Calculate working days in month (assuming 26 working days per month)
-      const workingDays = 26;
+      // Calculate working days in month (use config if provided)
+      const workingDays = config.workingDaysPerMonth || 26;
 
       // Calculate absent days (working days minus present days)
       const absentDays = Math.max(0, workingDays - attendanceRecord.presentDays);
@@ -323,7 +324,8 @@ export class SalaryService {
       const calculations = SalaryCalculator.calculateFullSalary(
         config.baseSalary,
         config.allowances,
-        allDeductions
+        allDeductions,
+        workingDays
       );
 
       const salaryData = {

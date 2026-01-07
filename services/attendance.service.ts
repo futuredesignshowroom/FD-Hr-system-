@@ -59,6 +59,13 @@ export class AttendanceService {
         // Don't fail the check-in if notification fails
       }
 
+      // Trigger salary recalculation for this date
+      try {
+        await this.triggerSalaryRecalculationForDate(userId, attendance.date as Date);
+      } catch (err) {
+        console.error('Error triggering salary recalculation after check-in:', err);
+      }
+
       return attendance;
     } catch (error) {
       console.error('Error checking in:', error);
@@ -88,7 +95,7 @@ export class AttendanceService {
       const lastIncompleteRecord = await this.getLastIncompleteRecord(userId);
       console.log('checkOut - lastIncompleteRecord:', lastIncompleteRecord?.id || 'null');
 
-      if (lastIncompleteRecord && lastIncompleteRecord.id) {
+        if (lastIncompleteRecord && lastIncompleteRecord.id) {
         // Update the existing incomplete record with check-out time and location
         const updateData = {
           checkOutTime: now,
@@ -109,6 +116,13 @@ export class AttendanceService {
         } catch (notificationError) {
           console.error('Error creating check-out notification:', notificationError);
           // Don't fail the check-out if notification fails
+        }
+        // Trigger salary recalculation for the checkout date
+        try {
+          const recordDate = lastIncompleteRecord.date ? new Date(lastIncompleteRecord.date as any) : new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          await this.triggerSalaryRecalculationForDate(userId, recordDate);
+        } catch (err) {
+          console.error('Error triggering salary recalculation after check-out (update):', err);
         }
       } else {
         // No incomplete record found, create a new record with only check-out time
@@ -143,6 +157,12 @@ export class AttendanceService {
           console.error('Error creating check-out notification:', notificationError);
           // Don't fail the check-out if notification fails
         }
+        // Trigger salary recalculation for the checkout date (new record)
+        try {
+          await this.triggerSalaryRecalculationForDate(userId, attendance.date as Date);
+        } catch (err) {
+          console.error('Error triggering salary recalculation after check-out (create):', err);
+        }
       }
     } catch (error) {
       console.error('Error checking out:', error);
@@ -150,6 +170,26 @@ export class AttendanceService {
     }
   }
 
+    /**
+     * Trigger salary recalculation for a user's month when attendance changes
+     */
+    private static async triggerSalaryRecalculationForDate(userId: string, date: Date) {
+      try {
+        const salaryModule = await import('./salary.service');
+        const SalaryService = salaryModule.SalaryService;
+        const config = await SalaryService.getSalaryConfig(userId);
+        if (!config) return;
+        const month = date.getMonth() + 1;
+        const year = date.getFullYear();
+        try {
+          await SalaryService.calculateAndUpsertCurrentMonthSalary(userId, month, year, config);
+        } catch (err) {
+          console.error('Error recalculating salary after attendance change:', err);
+        }
+      } catch (err) {
+        console.error('Error triggering salary recalculation (dynamic import):', err);
+      }
+    }
   /**
    * Get attendance for a specific date
    */
@@ -365,6 +405,13 @@ export class AttendanceService {
         attendance
       );
       attendance.id = docRef.id;
+
+      // Trigger salary recalculation for the marked date
+      try {
+        await this.triggerSalaryRecalculationForDate(userId, date);
+      } catch (err) {
+        console.error('Error triggering salary recalculation after manual markAttendance:', err);
+      }
 
       return attendance;
     } catch (error) {

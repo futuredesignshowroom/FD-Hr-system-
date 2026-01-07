@@ -18,8 +18,11 @@ export class SalaryCalculator {
   /**
    * Calculate total allowances
    */
-  static calculateTotalAllowances(allowances: Allowance[]): number {
+  static calculateTotalAllowances(allowances: Allowance[], baseSalary: number): number {
     return allowances.reduce((total, allowance) => {
+      if (allowance.type === 'percentage') {
+        return total + (allowance.amount / 100) * baseSalary;
+      }
       return total + allowance.amount;
     }, 0);
   }
@@ -74,7 +77,7 @@ export class SalaryCalculator {
       baseSalary,
       workingDaysPerMonth
     );
-    const totalAllowances = this.calculateTotalAllowances(allowances);
+    const totalAllowances = this.calculateTotalAllowances(allowances, baseSalary);
     const totalDeductions = this.calculateTotalDeductions(deductions);
     const netSalary = this.calculateNetSalary(
       baseSalary,

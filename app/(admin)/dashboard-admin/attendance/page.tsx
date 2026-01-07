@@ -170,9 +170,9 @@ export default function AdminAttendancePage() {
     return { present, absent, halfDay, percentage };
   };
 
-  const handleMarkAttendance = async (userId: string, status: AttendanceStatus) => {
+  const handleMarkAttendance = async (userId: string, date: Date, status: AttendanceStatus) => {
     try {
-      await AttendanceService.markAttendance(userId, new Date(selectedDate), status);
+      await AttendanceService.markAttendance(userId, date, status);
       await loadData(); // Refresh the data
     } catch (err) {
       console.error('Error marking attendance:', err);
@@ -527,13 +527,13 @@ export default function AdminAttendancePage() {
                     </td>
                     <td className="px-6 py-4 space-x-2">
                       <button
-                        onClick={() => handleMarkAttendance(record.userId, 'present')}
+                        onClick={() => handleMarkAttendance(record.userId, record.date, 'present')}
                         className="text-green-600 hover:underline text-xs"
                       >
                         Mark Present
                       </button>
                       <button
-                        onClick={() => handleMarkAttendance(record.userId, 'absent')}
+                        onClick={() => handleMarkAttendance(record.userId, record.date, 'absent')}
                         className="text-red-600 hover:underline text-xs"
                       >
                         Mark Absent
@@ -544,7 +544,7 @@ export default function AdminAttendancePage() {
                 {attendanceRecords.length === 0 && (
                   <tr>
                     <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
-                      No attendance records found for {new Date(selectedDate).toLocaleDateString()}.
+                      No attendance records found{selectedDate !== 'all' ? ` for ${new Date(selectedDate).toLocaleDateString()}` : ''}.
                       {searchTerm && ` Matching "${searchTerm}"`}
                       {departmentFilter && ` in ${departmentFilter}`}
                       {statusFilter && ` with status ${statusFilter}`}
