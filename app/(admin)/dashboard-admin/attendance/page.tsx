@@ -1,4 +1,5 @@
 'use client';
+// Fixed client-side exceptions - v1.1
 import { Employee } from '@/types/employee';
 import { useState, useEffect, useCallback } from 'react';
 import { AttendanceService } from '@/services/attendance.service';
