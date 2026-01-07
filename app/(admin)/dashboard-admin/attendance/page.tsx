@@ -67,7 +67,7 @@ export default function AdminAttendancePage() {
           return recordDate === selectedDate;
         })
         .map(record => {
-          const employee = allEmployees.find(emp => emp.id === record.userId);
+          const employee = allEmployees.find(emp => emp.userId === record.userId);
           return {
             ...record,
             employeeName: ((employee?.firstName || '') + ' ' + (employee?.lastName || '')).trim() || 'Unknown',
@@ -465,7 +465,7 @@ export default function AdminAttendancePage() {
                         ) : (
                           <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
                             <span className="text-xs font-medium text-gray-600">
-                              {record.employeeName.charAt(0).toUpperCase()}
+                              {record.employeeName ? record.employeeName.charAt(0).toUpperCase() : '?'}
                             </span>
                           </div>
                         )}
