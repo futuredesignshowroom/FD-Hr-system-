@@ -112,7 +112,7 @@ export default function AdminSalaryPage() {
     if (employee.salaryConfig) {
       setRulesForm({
         baseSalary: employee.salaryConfig.baseSalary,
-        allowances: employee.salaryConfig.allowances,
+        allowances: employee.salaryConfig.allowances || [],
         totalLeavesAllowed: employee.salaryConfig.totalLeavesAllowed,
         workingDaysPerMonth: employee.salaryConfig.workingDaysPerMonth,
       });
@@ -386,7 +386,7 @@ export default function AdminSalaryPage() {
                   </button>
                 </div>
                 <div className="space-y-2">
-                  {rulesForm.allowances.map((allowance, index) => (
+                  {(rulesForm.allowances || []).map((allowance, index) => (
                     <div key={index} className="flex gap-2 items-center">
                       <input
                         type="text"

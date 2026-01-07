@@ -605,18 +605,19 @@ export class ReportsService {
     try {
       const activities: RecentActivity[] = [];
 
-      // Get recent new employees (last 2)
+      // Get recent new employees (last 2) - simplified query to avoid index requirement
       const usersRef = collection(firestore, 'users');
-      const recentEmployees = await getDocs(
-        query(
-          usersRef,
-          where('role', '==', 'employee'),
-          orderBy('createdAt', 'desc'),
-          limit(2)
-        )
-      );
+      const allUsers = await getDocs(usersRef);
+      const employees = allUsers.docs
+        .filter(doc => doc.data().role === 'employee')
+        .sort((a, b) => {
+          const aTime = a.data().createdAt?.seconds || 0;
+          const bTime = b.data().createdAt?.seconds || 0;
+          return bTime - aTime;
+        })
+        .slice(0, 2);
 
-      recentEmployees.forEach((doc: any) => {
+      employees.forEach((doc: any) => {
         const data = doc.data();
         activities.push({
           id: doc.id,

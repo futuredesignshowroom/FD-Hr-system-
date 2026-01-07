@@ -332,7 +332,7 @@ export default function EmployeeAttendancePage() {
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded text-xs ${getStatusColor(status)}`}>
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                      {status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown'}
                     </span>
                   </td>
                 </tr>
@@ -366,7 +366,7 @@ export default function EmployeeAttendancePage() {
                     {group.date.toLocaleDateString()}
                   </h3>
                   <span className={`inline-block px-2 py-1 rounded text-xs mt-1 ${getStatusColor(status)}`}>
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                    {status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown'}
                   </span>
                 </div>
               </div>
