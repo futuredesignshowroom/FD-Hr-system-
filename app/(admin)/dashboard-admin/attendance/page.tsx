@@ -71,6 +71,7 @@ export default function AdminAttendancePage() {
           const employee = allEmployees.find(emp => emp.userId === record.userId);
           return {
             ...record,
+            status: record.status || 'present', // Ensure status has a default value
             employeeName: ((employee?.firstName || '') + ' ' + (employee?.lastName || '')).trim() || 'Unknown',
             employeeEmail: employee?.email || 'Unknown',
             employeeId: employee?.employeeId || 'N/A',
@@ -181,7 +182,7 @@ export default function AdminAttendancePage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | undefined) => {
     switch (status) {
       case 'present':
         return 'bg-green-200 text-green-800';
@@ -523,7 +524,7 @@ export default function AdminAttendancePage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded text-xs ${getStatusColor(record.status)}`}>
-                        {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
+                        {record.status ? record.status.charAt(0).toUpperCase() + record.status.slice(1) : 'Unknown'}
                       </span>
                     </td>
                     <td className="px-6 py-4 space-x-2">
