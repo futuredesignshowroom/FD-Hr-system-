@@ -6,7 +6,7 @@ import { AttendanceCalculator } from '@/lib/calculations';
 import { NotificationService } from './notification.service';
 import { EmployeeService } from './employee.service';
 import { Attendance, AttendanceRecord, AttendanceStatus } from '@/types/attendance';
-import { getCurrentLocation, LocationData } from '@/utils/location';
+import { getCurrentLocation } from '@/utils/location';
 
 export class AttendanceService {
   private static readonly COLLECTION = 'attendance';
@@ -17,30 +17,27 @@ export class AttendanceService {
   static async checkIn(userId: string): Promise<Attendance> {
     try {
       const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-      // Get current location - optional for check-in
-      let location: LocationData | undefined;
-      try {
-        location = await getCurrentLocation();
-      } catch (locationError) {
-        console.warn('Location not available for check-in:', locationError);
-        // Continue without location
+      // Check if user already checked in today
+      const existingCheckIn = await this.getTodaysCheckIn(userId, today);
+      if (existingCheckIn) {
+        throw new Error('You have already checked in today. Only one check-in per day is allowed.');
       }
+
+      // Get current location - COMPULSORY for check-in
+      const location = await getCurrentLocation();
 
       const attendance: Attendance = {
         id: '',
         userId,
-        date: new Date(now.getFullYear(), now.getMonth(), now.getDate()), // Store date without time
+        date: today, // Store date without time
         checkInTime: now,
+        checkInLocation: location, // Location is now compulsory
         status: 'present',
         createdAt: now,
         updatedAt: now,
       };
-
-      // Only add location if we got it
-      if (location) {
-        attendance.checkInLocation = location;
-      }
 
       const docRef = await FirestoreDB.addDocument(
         this.COLLECTION,
@@ -81,15 +78,16 @@ export class AttendanceService {
       console.log('checkOut called for userId:', userId);
 
       const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-      // Get current location - optional for check-out
-      let location: LocationData | undefined;
-      try {
-        location = await getCurrentLocation();
-      } catch (locationError) {
-        console.warn('Location not available for check-out:', locationError);
-        // Continue without location
+      // Check if user already checked out today
+      const existingCheckOut = await this.getTodaysCheckOut(userId, today);
+      if (existingCheckOut) {
+        throw new Error('You have already checked out today. Only one check-out per day is allowed.');
       }
+
+      // Get current location - COMPULSORY for check-out
+      const location = await getCurrentLocation();
 
       // Find the last record for the current user where check_out is null or undefined
       const lastIncompleteRecord = await this.getLastIncompleteRecord(userId);
@@ -99,7 +97,7 @@ export class AttendanceService {
         // Update the existing incomplete record with check-out time and location
         const updateData = {
           checkOutTime: now,
-          checkOutLocation: location,
+          checkOutLocation: location, // Location is now compulsory
           updatedAt: now,
           status: 'present'
         };
@@ -129,17 +127,13 @@ export class AttendanceService {
         const attendance: Attendance = {
           id: '',
           userId,
-          date: new Date(now.getFullYear(), now.getMonth(), now.getDate()), // Store date without time
+          date: today, // Store date without time
           checkOutTime: now,
+          checkOutLocation: location, // Location is now compulsory
           status: 'present',
           createdAt: now,
           updatedAt: now,
         };
-
-        // Only add location if we got it
-        if (location) {
-          attendance.checkOutLocation = location;
-        }
 
         const docRef = await FirestoreDB.addDocument(
           this.COLLECTION,
@@ -289,6 +283,46 @@ export class AttendanceService {
       return result;
     } catch (error) {
       console.error('Error getting last incomplete record:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if user has already checked in today
+   */
+  static async getTodaysCheckIn(userId: string, date: Date): Promise<Attendance | null> {
+    try {
+      const records = await FirestoreDB.queryCollection<Attendance>(
+        this.COLLECTION,
+        [
+          where('userId', '==', userId),
+          where('date', '==', date),
+          where('checkInTime', '!=', null),
+        ]
+      );
+      return records.length > 0 ? records[0] : null;
+    } catch (error) {
+      console.error('Error checking today\'s check-in:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if user has already checked out today
+   */
+  static async getTodaysCheckOut(userId: string, date: Date): Promise<Attendance | null> {
+    try {
+      const records = await FirestoreDB.queryCollection<Attendance>(
+        this.COLLECTION,
+        [
+          where('userId', '==', userId),
+          where('date', '==', date),
+          where('checkOutTime', '!=', null),
+        ]
+      );
+      return records.length > 0 ? records[0] : null;
+    } catch (error) {
+      console.error('Error checking today\'s check-out:', error);
       return null;
     }
   }
